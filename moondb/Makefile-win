@@ -1,0 +1,21 @@
+CXX = C:\mingw64\bin\g++
+INCL = -I C:\Boost\include\boost-1_70 -I gmp -I iconv
+LIBS = gmp\libgmp.a C:\Boost\lib\libboost_filesystem-mgw73-mt-s-x64-1_70.a C:\Boost\lib\libboost_system-mgw73-mt-s-x64-1_70.a C:\Boost\lib\libboost_locale-mgw73-mt-s-x64-1_70.a C:\mingw64\x86_64-w64-mingw32\lib\libpthread.a C:\mingw64\x86_64-w64-mingw32\lib\libws2_32.a C:\mingw64\x86_64-w64-mingw32\lib\libwsock32.a C:\mingw64\x86_64-w64-mingw32\lib\libiconv.a
+CXX_FLAGS = -pipe -fno-bounds-check -freg-struct-return -finline-limit=10000 -ftracer -s -minline-all-stringops -fexceptions -mthreads -O3 -m128bit-long-double -static-libstdc++ -static-libgcc -static -std=c++14 -m64 -Wall -W -Wextra -fprefetch-loop-arrays
+BIN = ..\bin\moondb.exe
+BUILD_DIR = ..\obj\Release\moondb
+
+all:
+	mkdir $(BUILD_DIR)\src
+	mkdir $(BUILD_DIR)\library
+	$(CXX) $(CXX_FLAGS) $(INCL) -c library\base64.cpp -o $(BUILD_DIR)\library\base64.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c library\BigDecimal.cpp -o $(BUILD_DIR)\library\BigDecimal.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c library\md5.cpp -o $(BUILD_DIR)\library\md5.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c library\sha1.cpp -o $(BUILD_DIR)\library\sha1.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cdatabase.cpp -o $(BUILD_DIR)\src\cdatabase.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\clog.cpp -o $(BUILD_DIR)\src\clog.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cmoondb.cpp -o $(BUILD_DIR)\src\cmoondb.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\ctable.cpp -o $(BUILD_DIR)\src\ctable.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cservice.cpp -o $(BUILD_DIR)\src\cservice.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c main.cpp -o $(BUILD_DIR)\main.o
+	$(CXX) -o $(BIN) $(BUILD_DIR)\src\cdatabase.o $(BUILD_DIR)\src\clog.o $(BUILD_DIR)\src\cmoondb.o $(BUILD_DIR)\src\ctable.o $(BUILD_DIR)\src\cservice.o $(BUILD_DIR)\library\base64.o $(BUILD_DIR)\library\BigDecimal.o $(BUILD_DIR)\library\md5.o $(BUILD_DIR)\library\sha1.o $(BUILD_DIR)\main.o $(CXX_FLAGS) $(LIBS)

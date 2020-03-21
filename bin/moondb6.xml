@@ -1,0 +1,11 @@
+<MoonDb>
+<InternetFamily>IPv6</InternetFamily>
+<DataServerIP>::</DataServerIP>
+<DataServerPort>8888</DataServerPort>
+<DataClientIP>::</DataClientIP>
+<DataDirectory>./data</DataDirectory>
+<MaxThreads>2</MaxThreads>
+<MaxConnections>100</MaxConnections>
+<MaxAllowedPacket>2M</MaxAllowedPacket>
+<Async>1</Async>
+</MoonDb>
