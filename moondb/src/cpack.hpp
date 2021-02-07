@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <boost/multiprecision/gmp.hpp>
 #include "crunningerror.hpp"
 
 namespace MoonDb {
@@ -305,14 +304,14 @@ public:
 		this->Read(&val, sizeof(double));
 	}
 
-	inline void Put(const long double & val)
+	inline void Put(const __float128 & val)
 	{
-		this->Write(&val, sizeof(long double));
+		this->Write(&val, sizeof(__float128));
 	}
 
-	inline void Get(long double & val)
+	inline void Get(__float128 & val)
 	{
-		this->Read(&val, sizeof(long double));
+		this->Read(&val, sizeof(__float128));
 	}
 
 	inline void Put(const std::string & val)
@@ -377,82 +376,6 @@ public:
 			this->Read(&val.front(), size);
 		}
 	}
-
-	/************************************************************************************/
-	/*
-	 * gmp整数和分数在存储时可以为定长和变长，当pad_size为0时为变长，大于0为定长
-	 */
-
-	inline void Put(const MP_INT& mpz, uint32_t pad_size = 0)
-	{
-		this->Put(mpz._mp_size);
-		// 此处size和pad_size表示mp_limb_t长度的整数倍，因为如果_mp_size小于0表示负数，大于0表示正数，所以取绝对值
-		uint32_t size = static_cast<uint32_t>(::abs(mpz._mp_size));
-		if(pad_size > 0 && size > pad_size) {
-			size = pad_size;
-		}
-		this->Write(mpz._mp_d, sizeof(mp_limb_t) * size);
-		// 补剩余的空白字节
-		if(pad_size > size) {
-			std::string pad_str(sizeof(mp_limb_t) * static_cast<uint32_t>(pad_size - size), '\0');
-			this->Write(&pad_str.front(), pad_str.size());
-		}
-	}
-
-	inline void Get(MP_INT& mpz, uint32_t pad_size = 0)
-	{
-		if(pad_size > 0) {
-			mpz_init2(&mpz, static_cast<mp_bitcnt_t>(pad_size * GMP_LIMB_BITS));
-			this->Get(mpz._mp_size);
-			uint32_t size = static_cast<uint32_t>(::abs(mpz._mp_size));
-			this->Read(mpz._mp_d, sizeof(mp_limb_t) * size);
-			if(pad_size > size) {
-				this->Position += sizeof(mp_limb_t) * static_cast<uint32_t>(pad_size - size);
-			}
-		}
-		else {
-			int32_t mp_size;
-			this->Get(mp_size);
-			uint32_t size = static_cast<uint32_t>(::abs(mp_size));
-			mpz_init2(&mpz, static_cast<mp_bitcnt_t>(size * GMP_LIMB_BITS));
-			mpz._mp_size = mp_size;
-			this->Read(mpz._mp_d, sizeof(mp_limb_t) * size);
-		}
-	}
-
-	inline void Put(const boost::multiprecision::mpz_int& ap_int, uint32_t pad_size = 0)
-	{
-		this->Put(*ap_int.backend().data(), pad_size);
-	}
-
-	inline void Get(boost::multiprecision::mpz_int& ap_int, uint32_t pad_size = 0)
-	{
-		this->Get(*ap_int.backend().data(), pad_size);
-	}
-
-	inline void Put(const MP_RAT& mpq, uint32_t pad_size = 0)
-	{
-		this->Put(mpq._mp_num, pad_size);
-		this->Put(mpq._mp_den, pad_size);
-	}
-
-	inline void Get(MP_RAT& mpq, uint32_t pad_size = 0)
-	{
-		this->Get(mpq._mp_num, pad_size);
-		this->Get(mpq._mp_den, pad_size);
-	}
-
-	inline void Put(const boost::multiprecision::mpq_rational& ap_rat, uint32_t pad_size = 0)
-	{
-		this->Put(*ap_rat.backend().data(), pad_size);
-	}
-
-	inline void Get(boost::multiprecision::mpq_rational& ap_rat, uint32_t pad_size = 0)
-	{
-		this->Get(*ap_rat.backend().data(), pad_size);
-	}
-
-	/************************************************************************************/
 
 	inline size_t GetSize() const noexcept
 	{

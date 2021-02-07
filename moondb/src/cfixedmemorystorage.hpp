@@ -22,7 +22,7 @@ public:
 		return true;
 	}
 
-	void InsertData(map<string, CAny>& data, CPack& ret)
+	void InsertData(unordered_map<string, CAny>& data, CPack& ret)
 	{
 		auto dit = data.find(RowIdField);
 		//Mutex.lock();
@@ -55,7 +55,7 @@ public:
 		InsertResult<IdType>(ret, id);
 	}
 
-	void UpdateData(const CAny& rowid, map<string, CAny>& data, CPack& ret)
+	void UpdateData(const CAny& rowid, unordered_map<string, CAny>& data, CPack& ret)
 	{
 		IdType id = GetRowId<IdType>(false, rowid);
 		//Mutex.lock();
@@ -88,7 +88,7 @@ public:
 		ExecuteResult<IdType>(ret, 1);
 	}
 
-	void ReplaceData(const CAny& rowid, map<string, CAny>& data, CPack& ret)
+	void ReplaceData(const CAny& rowid, unordered_map<string, CAny>& data, CPack& ret)
 	{
 		IdType id = GetRowId<IdType>(false, rowid);
 		//Mutex.lock();

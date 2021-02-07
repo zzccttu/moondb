@@ -25,7 +25,10 @@ public:
 	static void	Throw(const char* filename, std::uint32_t line, const std::string& message) __attribute((noreturn))
 	{
 		std::string Message = "'Error: " + message + "' occur in the file '" + filename + "' at line " + std::to_string(line);
-		CLog::Instance()->Put(CLog::L_FATAL, Message.c_str());
+		CLog* logobj = CLog::Instance();
+		if(nullptr != logobj) {
+			CLog::Instance()->Put(CLog::L_FATAL, Message.c_str());
+		}
 		throw std::runtime_error(Message);
 	}
 

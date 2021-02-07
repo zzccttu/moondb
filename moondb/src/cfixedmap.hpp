@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include <queue>
 #include "crunningerror.hpp"
 #include "ctime.hpp"
@@ -218,7 +218,7 @@ protected:
 		CValue(uint64_t pos, std::chrono::high_resolution_clock::rep exptime)
 			: Position(pos), ExpiredTime(exptime) {}
 	};
-	std::map<T_Key, CValue> Keys;
+	std::unordered_map<T_Key, CValue> Keys;
 	std::queue<uint64_t> Deleted;
 	uint64_t Size;
 	uint64_t Capacity;
@@ -232,7 +232,7 @@ protected:
 		return static_cast<char*>(Contents) + pos * RowLength;
 	}
 
-	inline void Delete(typename std::map<T_Key, CValue>::iterator& it)
+	inline void Delete(typename std::unordered_map<T_Key, CValue>::iterator& it)
 	{
 		Deleted.emplace(it->second.Position);
 		Keys.erase(it);

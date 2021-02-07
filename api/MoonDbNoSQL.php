@@ -15,7 +15,6 @@ class MoonDbNoSQL
 	const FT_UINT128 = 12;
 	const FT_FLOAT = 17;
 	const FT_DOUBLE = 18;
-	const FT_LONGDOUBLE = 19;
 	const FT_STRING = 31;
 	const FT_NULL = 65535;
 
@@ -27,11 +26,10 @@ class MoonDbNoSQL
 
 	const RT_ERROR = 1;
 	const RT_CONNECT = 2;
-	const RT_RECONNECT = 3;
-	const RT_QUERY = 4;
-	const RT_LAST_INSERT_ID = 5;
-	const RT_AFFECTED_ROWS = 6;
-	const RT_EXECUTE = 7;
+	const RT_QUERY = 3;
+	const RT_LAST_INSERT_ID = 4;
+	const RT_AFFECTED_ROWS = 5;
+	const RT_EXECUTE = 6;
 
 	const Bytes_Per_Read = 8192;
 
@@ -69,38 +67,19 @@ class MoonDbNoSQL
 	);
 
 	protected $useSocket;
-	protected $IPv6;
-	protected $serverIP;
-	protected $serverPort;
-	protected $clientTimeout;
 	protected $socket;
 	protected $database;
-	protected $autoReconnect;
 
-	function __construct($ip, $port, $dbname = null, $timeout = 5000000, $autoreconn = false)
+	function __construct($ip, $port, $dbname = null, $timeout = 5000000)
 	{
 		$this->useSocket = function_exists('socket_create');
 		if($timeout <= 0)
 			$timeout = 5000000;
-		$this->IPv6 = strpos($ip, ':') !== false;
-		$this->serverIP = $ip;
-		$this->serverPort = $port;
-		$this->clientTimeout = $timeout;
 		$this->database = $dbname;
-		$this->autoReconnect = $autoreconn;
-		$this->connect();
-	}
-
-	function __destruct()
-	{
-		$this->disconnect();
-	}
-
-	protected function connect()
-	{
-		$timeopt = array("sec" => $this->clientTimeout / 1000000, "usec" => $this->clientTimeout % 1000000);
+		$timeopt = array("sec" => $timeout / 1000000, "usec" => $timeout % 1000000);
 		if($this->useSocket) {
-			$socket = socket_create(($this->IPv6 ? AF_INET6 : AF_INET), SOCK_STREAM, SOL_TCP);
+			$ipv6 = strpos($ip, ':') !== false;
+			$socket = socket_create(($ipv6 ? AF_INET6 : AF_INET), SOCK_STREAM, SOL_TCP);
 			if(!$socket) {
 				$this->throwError("Can't created socket");
 			}
@@ -111,23 +90,28 @@ class MoonDbNoSQL
 			// 最多5秒连接
 			$itries = 5000;
 			do {
-				if(@socket_connect($socket, $this->serverIP, $this->serverPort)) {
+				if(@socket_connect($socket, $ip, $port)) {
 					break;
 				}
 				usleep(1000);
 			} while(--$itries > 0);
 			if($itries == 0) {
-				$this->throwError("Can't connect to MoonDb({$this->serverIP}:{$this->serverPort})");
+				$this->throwError("Can't connect to MoonDb($ip:$port)");
 			}
 		}
 		else {
-			$socket = stream_socket_client("tcp://{$this->serverIP}:{$this->serverPort}", $errno, $errstr, 5);
+			$socket = stream_socket_client("tcp://$ip:$port", $errno, $errstr, 5);
 			if(!$socket) {
 				$this->throwError("Can't connect to MoonDb: $errstr ($errno)");
 			}
 			stream_set_timeout($socket, $timeopt["sec"], $timeopt["usec"]);
 		}
 		$this->socket = $socket;
+	}
+
+	function __destruct()
+	{
+		$this->disconnect();
 	}
 
 	protected function disconnect()
@@ -139,12 +123,6 @@ class MoonDbNoSQL
 				fclose($this->socket);
 			$this->socket = null;
 		}
-	}
-
-	protected function reconnect()
-	{
-		$this->disconnect();
-		$this->connect();
 	}
 
 	protected function throwError($msg)
@@ -249,10 +227,7 @@ class MoonDbNoSQL
 	{
 		$datatobesent = $this->prepareData(self::OPER_INSERT, $table, $data);
 		$this->send($datatobesent);
-		if(!is_array($ret = $this->receiveData($this->autoReconnect))) {
-			$this->send($datatobesent);
-			$ret = $this->receiveData(false);
-		}
+		$ret = $this->receiveData();
 		list($rettype, $retcon) = $ret;
 		if(self::RT_LAST_INSERT_ID == $rettype) {
 			return $this->idNumResult($retcon);
@@ -268,10 +243,7 @@ class MoonDbNoSQL
 		$data['rowid'] = (string)$id;
 		$datatobesent = $this->prepareData(self::OPER_UPDATE, $table, $data);
 		$this->send($datatobesent);
-		if(!is_array($ret = $this->receiveData($this->autoReconnect))) {
-			$this->send($datatobesent);
-			$ret = $this->receiveData(false);
-		}
+		$ret = $this->receiveData();
 		list($rettype, $retcon) = $ret;
 		if(self::RT_AFFECTED_ROWS == $rettype) {
 			return $this->idNumResult($retcon);
@@ -286,10 +258,7 @@ class MoonDbNoSQL
 	{
 		$datatobesent = $this->prepareData(self::OPER_DELETE, $table, array('rowid' => (string)$id));
 		$this->send($datatobesent);
-		if(!is_array($ret = $this->receiveData($this->autoReconnect))) {
-			$this->send($datatobesent);
-			$ret = $this->receiveData(false);
-		}
+		$ret = $this->receiveData();
 		list($rettype, $retcon) = $ret;
 		if(self::RT_AFFECTED_ROWS == $rettype) {
 			return $this->idNumResult($retcon);
@@ -303,10 +272,7 @@ class MoonDbNoSQL
 	{
 		$datatobesent = $this->prepareData(self::OPER_SELECT, $table, array('rowid' => (string)$id));
 		$this->send($datatobesent);
-		if(!is_array($ret = $this->receiveData($this->autoReconnect))) {
-			$this->send($datatobesent);
-			$ret = $this->receiveData(false);
-		}
+		$ret = $this->receiveData();
 		list($rettype, $rawdata) = $ret;
 
 		if(self::RT_QUERY == $rettype) {
@@ -356,7 +322,7 @@ class MoonDbNoSQL
 						$pos += 1;
 						break;
 					case self::FT_STRING:
-						$datalen = current(unpack('l', substr($rawdata, $pos, 4)));
+						$datalen = current(unpack('L', substr($rawdata, $pos, 4)));
 						$pos += 4;
 						$retdata[$fieldname] = substr($rawdata, $pos, $datalen);
 						$pos += $datalen;
@@ -376,10 +342,7 @@ class MoonDbNoSQL
 		$data['rowid'] = (string)$id;
 		$datatobesent = $this->prepareData(self::OPER_REPLACE, $table, $data);
 		$this->send($datatobesent);
-		if(!is_array($ret = $this->receiveData($this->autoReconnect))) {
-			$this->send($datatobesent);
-			$ret = $this->receiveData(false);
-		}
+		$ret = $this->receiveData();
 		list($rettype, $retcon) = $ret;
 		if(self::RT_AFFECTED_ROWS == $rettype) {
 			return $this->idNumResult($retcon);
@@ -437,7 +400,7 @@ class MoonDbNoSQL
 					$content .= $this->packUInt128($value);
 					break;
 				case self::FT_STRING:
-					$content .= pack('l', strlen($value)) . $value;
+					$content .= pack('L', strlen($value)) . $value;
 					break;
 				case self::FT_BOOL:
 					$content .= pack('C', $value ? 1 : 0);
@@ -473,19 +436,13 @@ class MoonDbNoSQL
 	}
 
 	// 返回数组表示成功，返回false表示需要重新发送数据并接收
-	protected function receiveData($reconn)
+	protected function receiveData()
 	{
 		// 为了避免发送过大的数据被数据库服务拒绝，停止接收剩余数据，以致只能读取一次数据，所以这里多读些数据包含错误信息。
 		// 注：如果接收完数据再返回错误信息则无此问题
 		$recvbytes = $this->receive(self::Bytes_Per_Read, $content);
 		if(false === $recvbytes) {
-			if($reconn) {
-				$this->reconnect();
-				return false;
-			}
-			else {
-				throw new Exception("Can't connect to the server.");
-			}
+			throw new Exception("Can't connect to the server.");
 		}
 		if($recvbytes < 11) {
 			$this->throwError("An error occor when recieving data.");

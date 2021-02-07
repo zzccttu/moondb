@@ -85,20 +85,20 @@ public:
 
 	CAny(const float& v)
 	{
-		Type = FT_FLOAT;
-		Data.Float = v;
+		Type = FT_FLOAT32;
+		Data.Float32 = v;
 	}
 
 	CAny(const double& v)
 	{
-		Type = FT_DOUBLE;
-		Data.Double = v;
+		Type = FT_FLOAT64;
+		Data.Float64 = v;
 	}
 
-	CAny(const long double& v)
+	CAny(const __float128& v)
 	{
-		Type = FT_LONGDOUBLE;
-		Data.LongDouble = v;
+		Type = FT_FLOAT128;
+		Data.Float128 = v;
 	}
 
 	CAny(const std::string& v)
@@ -157,18 +157,18 @@ public:
 		case FT_UINT128:
 			pack.Get(Data.UInt128);
 			break;
-		case FT_FLOAT:
-			pack.Get(Data.Float);
+		case FT_FLOAT32:
+			pack.Get(Data.Float32);
 			break;
-		case FT_DOUBLE:
-			pack.Get(Data.Double);
+		case FT_FLOAT64:
+			pack.Get(Data.Float64);
 			break;
-		case FT_LONGDOUBLE:
-			pack.Get(Data.LongDouble);
+		case FT_FLOAT128:
+			pack.Get(Data.Float128);
 			break;
 		case FT_STRING:
 			Data.String = new std::string;
-			pack.Get<int32_t>(*Data.String);
+			pack.Get<uint32_t>(*Data.String);
 			break;
 		case FT_NULL:
 			break;
@@ -234,17 +234,17 @@ public:
 		//case FT_SERIAL32:
 		//case FT_SERIAL64:
 		//case FT_SERIAL128:
-		case FT_FLOAT:
-			pack.Put(Data.Float);
+		case FT_FLOAT32:
+			pack.Put(Data.Float32);
 			break;
-		case FT_DOUBLE:
-			pack.Put(Data.Double);
+		case FT_FLOAT64:
+			pack.Put(Data.Float64);
 			break;
-		case FT_LONGDOUBLE:
-			pack.Put(Data.LongDouble);
+		case FT_FLOAT128:
+			pack.Put(Data.Float128);
 			break;
 		case FT_STRING:
-			pack.Put<int32_t>(*Data.String);
+			pack.Put<uint32_t>(*Data.String);
 			break;
 		case FT_NULL:
 			break;
@@ -363,34 +363,34 @@ public:
 		return Data.UInt128;
 	}
 
-	float& ToFloat()
+	float& ToFloat32()
 	{
-		return Data.Float;
+		return Data.Float32;
 	}
 
-	const float& ToFloat() const
+	const float& ToFloat32() const
 	{
-		return Data.Float;
+		return Data.Float32;
 	}
 
-	double& ToDouble()
+	double& ToFloat64()
 	{
-		return Data.Double;
+		return Data.Float64;
 	}
 
-	const double& ToDouble() const
+	const double& ToFloat64() const
 	{
-		return Data.Double;
+		return Data.Float64;
 	}
 
-	long double& ToLongDouble()
+	__float128& ToFloat128()
 	{
-		return Data.LongDouble;
+		return Data.Float128;
 	}
 
-	const long double& ToLongDouble() const
+	const __float128& ToFloat128() const
 	{
-		return Data.LongDouble;
+		return Data.Float128;
 	}
 
 	std::string ToString()
@@ -504,24 +504,24 @@ public:
 	CAny& operator = (const float& v)
 	{
 		Reset();
-		Type = FT_FLOAT;
-		Data.Float = v;
+		Type = FT_FLOAT32;
+		Data.Float32 = v;
 		return *this;
 	}
 
 	CAny& operator = (const double& v)
 	{
 		Reset();
-		Type = FT_DOUBLE;
-		Data.Double = v;
+		Type = FT_FLOAT64;
+		Data.Float64 = v;
 		return *this;
 	}
 
-	CAny& operator = (const long double& v)
+	CAny& operator = (const __float128& v)
 	{
 		Reset();
-		Type = FT_LONGDOUBLE;
-		Data.LongDouble = v;
+		Type = FT_FLOAT128;
+		Data.Float128 = v;
 		return *this;
 	}
 
@@ -579,14 +579,14 @@ public:
 		case FT_UINT128:
 			Data.UInt128 = v.ToUInt128();
 			break;
-		case FT_FLOAT:
-			Data.Float = v.ToFloat();
+		case FT_FLOAT32:
+			Data.Float32 = v.ToFloat32();
 			break;
-		case FT_DOUBLE:
-			Data.Double = v.ToDouble();
+		case FT_FLOAT64:
+			Data.Float64 = v.ToFloat64();
 			break;
-		case FT_LONGDOUBLE:
-			Data.LongDouble = v.ToLongDouble();
+		case FT_FLOAT128:
+			Data.Float128 = v.ToFloat128();
 			break;
 		case FT_STRING:
 			Data.String = new std::string(v.ToString());
@@ -594,6 +594,22 @@ public:
 		default:
 			break;
 		}
+		return *this;
+	}
+
+	CAny& operator = (CAny&& v)
+	{
+		Reset();
+		Type = v.Type;
+		switch(Type) {
+		case FT_STRING:
+			Data.String = v.Data.String;
+			break;
+		default:
+			Data = v.Data;
+			break;
+		}
+		v.Type = FT_NONE;
 		return *this;
 	}
 
@@ -622,12 +638,12 @@ public:
 			os << v.ToInt128(); break;
 		case FT_UINT128:
 			os << v.ToUInt128(); break;
-		case FT_FLOAT:
-			os << v.ToFloat(); break;
-		case FT_DOUBLE:
-			os << v.ToDouble(); break;
-		case FT_LONGDOUBLE:
-			os << v.ToLongDouble(); break;
+		case FT_FLOAT32:
+			os << v.ToFloat32(); break;
+		case FT_FLOAT64:
+			os << v.ToFloat64(); break;
+		case FT_FLOAT128:
+			os << v.ToFloat128(); break;
 		case FT_STRING:
 			os << v.ToString(); break;
 		}
@@ -646,9 +662,9 @@ public:
 		uint64_t UInt64;
 		__int128_t Int128;
 		__uint128_t UInt128;
-		float Float;
-		double Double;
-		long double LongDouble;
+		float Float32;
+		double Float64;
+		__float128 Float128;
 		std::string* String;
 	} Data;
 

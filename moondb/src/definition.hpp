@@ -1,6 +1,6 @@
 #pragma once
 
-#include <map>
+#include <unordered_map>
 #include "setting.h"
 #include "ciconv.hpp"
 #include "functions.hpp"
@@ -24,10 +24,10 @@ namespace MoonDb {
 		FT_SERIAL32,//32位整数自增字段
 		FT_SERIAL64,//64位整数自增字段
 		FT_SERIAL128,//128位整数自增字段
-		FT_FLOAT,
-		FT_DOUBLE,
-		FT_LONGDOUBLE,
-		FT_DECIMAL,//M,D,M为总体精度，D为小数位数
+		FT_FLOAT32,
+		FT_FLOAT64,
+		FT_FLOAT128,
+		FT_NUMERIC,// 任意精度浮点数，尚未实现
 		FT_ENUM,//最多65535个选项
 		FT_DATE,//从-16384-01-01至16383-12-31  3个字节
 		FT_TIME,//8个字节有符号整数，精度为纳秒
@@ -37,17 +37,17 @@ namespace MoonDb {
 		FT_VARCHAR,//n，长度0-65535
 		FT_BINARY,
 		FT_VARBINARY,
-		FT_TEXT,//长度为4个字节，不同于mysql长度为2个字节
-		FT_BLOB,
-		FT_MPINT,//任意精度整数，用4个字节的有符号整数存储长度（单位长度为8字节unsinged long long），n个8字节无符号整数  boost::multiprecision::mpz_int，如果n为0表示任意高精度的整数
-		FT_MPRATIONAL,//分数，分子和分母一同存储 boost::multiprecision::mpq_rational
+		FT_TEXT,// 长度占4个字节，不同于mysql长度为2个字节，能够存储4G-1个字节的数据
+		FT_BLOB,// 二进制数据，其余同FT_TEXT
+		FT_DECIMAL64,
+		FT_DECIMAL128,//用128位有符号整数存储，有效数字的值从-170141183460469231731687303715884105728至170141183460469231731687303715884105727；Scale从-32767至32729，为有效数字乘以10的Scale次方，为0表示整数
 		FT_SIZE,
 		// 以下为非字段类型
 		FT_ICONVSTRING = 65534,// 程序内部使用的多字节字符串类型
 		FT_NULL = 65535,// NULL值
 	};
 
-	const uint16_t FT_STRING = 31;
+	const uint16_t FT_STRING = FT_BLOB;
 
 	enum IndexType {
 		IT_NONE,
@@ -75,7 +75,6 @@ namespace MoonDb {
 		RT_NONE,
 		RT_ERROR,
 		RT_CONNECT,
-		RT_RECONNECT,
 		RT_QUERY,
 		RT_LAST_INSERT_ID,
 		RT_AFFECTED_ROWS,
@@ -167,7 +166,7 @@ namespace MoonDb {
 	public:
 		static FieldType StringToFieldType(std::string type)
 		{
-			static std::map<std::string, FieldType> ftmap;
+			static std::unordered_map<std::string, FieldType> ftmap;
 			if(!ftmap.size()) {
 				ftmap["BOOL"] = FT_BOOL;
 				ftmap["BOOLEAN"] = FT_BOOL;
@@ -200,12 +199,12 @@ namespace MoonDb {
 				ftmap["BIGINT UNSIGNED NOT NULL AUTO_INCREMENT"] = FT_SERIAL64;
 				ftmap["BIGSERIAL"] = FT_SERIAL64;
 				ftmap["SERIAL64"] = FT_SERIAL64;
-				ftmap["FLOAT"] = FT_FLOAT;
-				ftmap["REAL"] = FT_FLOAT;
-				ftmap["DOUBLE"] = FT_DOUBLE;
-				ftmap["DOUBLE PRECISION"] = FT_DOUBLE;
-				ftmap["FLOAT32"] = FT_FLOAT;
-				ftmap["FLOAT64"] = FT_DOUBLE;
+				ftmap["FLOAT"] = FT_FLOAT32;
+				ftmap["REAL"] = FT_FLOAT32;
+				ftmap["DOUBLE"] = FT_FLOAT64;
+				ftmap["DOUBLE PRECISION"] = FT_FLOAT64;
+				ftmap["FLOAT32"] = FT_FLOAT32;
+				ftmap["FLOAT64"] = FT_FLOAT64;
 				ftmap["DATE"] = FT_DATE;
 				ftmap["TIME"] = FT_TIME;
 				ftmap["DATETIME"] = FT_DATETIME;
@@ -226,17 +225,16 @@ namespace MoonDb {
 				ftmap["MEDIUMBLOB"] = FT_BLOB;
 				ftmap["LONGBLOB"] = FT_BLOB;
 				ftmap["BYTEA"] = FT_BLOB;
-				ftmap["DECIMAL"] = FT_DECIMAL;
-				ftmap["NUMERIC"] = FT_DECIMAL;
+				ftmap["DECIMAL"] = FT_NUMERIC;
+				ftmap["NUMERIC"] = FT_NUMERIC;
+				ftmap["DECIMAL64"] = FT_DECIMAL64;
+				ftmap["DECIMAL128"] = FT_DECIMAL128;
 				ftmap["ENUM"] = FT_ENUM;
 				// 本数据库中的特殊字段类型
-				ftmap["MPINT"] = FT_MPINT;
-				ftmap["MPRATIONAL"] = FT_MPRATIONAL;
 				ftmap["INT128"] = FT_INT128;
 				ftmap["UINT128"] = FT_UINT128;
 				ftmap["SERIAL128"] = FT_SERIAL128;
-				ftmap["LONGDOUBLE"] = FT_LONGDOUBLE;
-				ftmap["FLOAT128"] = FT_LONGDOUBLE;
+				ftmap["FLOAT128"] = FT_FLOAT128;
 			}
 			auto it = ftmap.find(type);
 			if(it == ftmap.end()) {
@@ -267,10 +265,10 @@ namespace MoonDb {
 				fieldtypes[FT_SERIAL32] = "SERIAL32";
 				fieldtypes[FT_SERIAL64] = "SERIAL64";
 				fieldtypes[FT_SERIAL128] = "SERIAL128";
-				fieldtypes[FT_FLOAT] = "FLOAT";
-				fieldtypes[FT_DOUBLE] = "DOUBLE";
-				fieldtypes[FT_LONGDOUBLE] = "LONGDOUBLE";
-				fieldtypes[FT_DECIMAL] = "DECIMAL";
+				fieldtypes[FT_FLOAT32] = "FLOAT32";
+				fieldtypes[FT_FLOAT64] = "FLOAT64";
+				fieldtypes[FT_FLOAT128] = "FLOAT128";
+				fieldtypes[FT_NUMERIC] = "NUMERIC";
 				fieldtypes[FT_ENUM] = "ENUM";
 				fieldtypes[FT_DATE] = "DATE";
 				fieldtypes[FT_TIME] = "TIME";
@@ -282,8 +280,8 @@ namespace MoonDb {
 				fieldtypes[FT_VARBINARY] = "VARBINARY";
 				fieldtypes[FT_TEXT] = "TEXT";
 				fieldtypes[FT_BLOB] = "BLOB";
-				fieldtypes[FT_MPINT] = "MPINT";
-				fieldtypes[FT_MPRATIONAL] = "MPRATIONAL";
+				fieldtypes[FT_DECIMAL64] = "DECIMAL64";
+				fieldtypes[FT_DECIMAL128] = "DECIMAL128";
 			}
 			if(type >= FT_SIZE) {
 				return fieldtypes[FT_NONE];
@@ -293,7 +291,7 @@ namespace MoonDb {
 
 		static TableType StringToTableType(const std::string& type)
 		{
-			static std::map<std::string, TableType> ttmap;
+			static std::unordered_map<std::string, TableType> ttmap;
 			if(!ttmap.size()) {
 				ttmap["FIXMEMORY"] = TT_FIXMEMORY;
 				ttmap["VARMEMORY"] = TT_VARMEMORY;

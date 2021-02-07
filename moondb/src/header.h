@@ -17,13 +17,12 @@
 #include <atomic>
 #include <regex>
 #include <functional>
+#include <iostream>
+#include <iomanip>
+#include <unordered_map>
+#include <deque>
+#include <unordered_set>
 using namespace std;
-
-//#include <boost/multiprecision/cpp_int.hpp>
-//#include <boost/multiprecision/cpp_dec_float.hpp>
-//#include <boost/multiprecision/cpp_bin_float.hpp>
-#include <boost/multiprecision/gmp.hpp>
-using namespace boost::multiprecision;
 
 #include "setting.h"
 #include "csystemerror.hpp"
@@ -37,6 +36,7 @@ using namespace boost::multiprecision;
 #include "definition.hpp"
 #include "cany.hpp"
 #include "clog.h"
+#include "cmultimutex.hpp"
 
 using namespace MoonDb;
 

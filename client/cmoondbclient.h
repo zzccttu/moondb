@@ -59,6 +59,8 @@ public:
 	__uint128_t ReplaceData(const string& table, __uint128_t id, map<string, CAny>& data);
 	__uint128_t GetData(const string& table, __uint128_t id, map<string, CAny>& data);
 
+	static string Quote(const string& str);
+
 protected:
 	void Connect();
 	void SynchConnect();

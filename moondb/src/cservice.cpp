@@ -18,7 +18,7 @@ const char* CService::WinErrorInfo()
 {
 	static char sBuf[1024];
 	DWORD uErr = ::GetLastError ();
-	snprintf ( sBuf, sizeof(sBuf), "code=%d, error=", uErr );
+	snprintf ( sBuf, sizeof(sBuf), "code=%ld, error=", uErr );
 	size_t iLen = strlen(sBuf);
 	if ( !FormatMessage ( FORMAT_MESSAGE_FROM_SYSTEM, nullptr, uErr, 0, static_cast<STRPOINTER>(static_cast<void*>(sBuf+iLen)), static_cast<DWORD>(sizeof(sBuf)-iLen), nullptr ) )
 		snprintf ( sBuf+iLen, sizeof(sBuf)-iLen, "(no message)" );

@@ -14,8 +14,9 @@ CMoonDb::CMoonDb()
 	SynchThreadNum = 0;
 	GroupConnectionNum = 0;
 
-	DataMutexes = nullptr;
 	GroupConnectionNumPerThread = nullptr;
+
+	LoadAllSchemasOnLoading = false;
 
 #if defined(_WIN32)
 	WSADATA ws;
@@ -31,6 +32,11 @@ CMoonDb::~CMoonDb()
 #if defined(_WIN32)
 	::WSACleanup();
 #endif
+	DeletedDbMutexes.clear();
+	for(auto it = DatabaseMutexes.begin(); it != DatabaseMutexes.end(); it++) {
+		delete *it;
+	}
+	DatabaseMutexes.clear();
 }
 
 uint32_t CMoonDb::IPToLong(const string& ip) const noexcept
@@ -148,6 +154,25 @@ void CMoonDb::LoadConfiguration(const string& programdir, bool showinfo, const s
 	}
 	else {
 		DataDirectory = ProgramDirectory + DIRECTORY_SEPARATOR + "data";
+	}
+
+	if(params.find("SQLiteDirectory") != params.end()) {
+		SQLiteDirectory = params["SQLiteDirectory"].content;
+		to_current_os_path(SQLiteDirectory);
+		// 如果是程序所在目录转换成绝对地址
+		if(SQLiteDirectory.substr(0, 2) == string(".") + DIRECTORY_SEPARATOR) {
+			SQLiteDirectory = ProgramDirectory + DIRECTORY_SEPARATOR + SQLiteDirectory.substr(2);
+		}
+		if(SQLiteDirectory[SQLiteDirectory.size() - 1] == DIRECTORY_SEPARATOR) {
+			string trimchar(1, DIRECTORY_SEPARATOR);
+			rtrim(SQLiteDirectory, trimchar);
+		}
+		if(SQLiteDirectory.empty() || !CFileSystem::IsDirectory(SQLiteDirectory)) {
+			TriggerError("Invalid SQLiteDirectory:" + SQLiteDirectory);
+		}
+	}
+	else {
+		SQLiteDirectory = ProgramDirectory + DIRECTORY_SEPARATOR + "sqlite";
 	}
 
 	if(params.find("MaxThreads") != params.end()) {
@@ -358,6 +383,19 @@ void CMoonDb::LoadConfiguration(const string& programdir, bool showinfo, const s
 #else
 		Async = 1;
 #endif
+	}
+
+	if(params.find("LoadAllSchemasOnLoading") != params.end()) {
+		string content = to_lower_copy(params["LoadAllSchemasOnLoading"].content);
+		if("1" == content || "true" == content) {
+			LoadAllSchemasOnLoading = true;
+		}
+		else if("0" == content || "false" == content){
+			LoadAllSchemasOnLoading = false;
+		}
+		else {
+			TriggerError("Wrong LoadAllSchemasOnLoading:" + content);
+		}
 	}
 
 	//cout << DataDirectory << "," << Port << "," << MaxThreads << "," << BackLog << "," << MaxConnections << "," << MaxAllowedPacket << endl;
@@ -597,7 +635,9 @@ void CMoonDb::Start()
 		}
 	}
 
-	LoadSchemas();
+	if(LoadAllSchemasOnLoading) {
+		LoadSchemas();
+	}
 
 	Started = true;
 	Stopped = false;
@@ -608,12 +648,12 @@ void CMoonDb::Clear() noexcept
 	MoonSockClose(DataSeverSocket);
 //	MoonSockClose(ManagementSeverSocket);
 	if(Databases.size() > 0) {
-		delete [] DataMutexes;
+		for(auto it = Databases.begin(); it != Databases.end(); it++)	{
+			delete it->second->GetMutex();
+			delete it->second;
+		}
+		Databases.clear();
 	}
-	for(auto it = Databases.begin(); it != Databases.end(); it++)	{
-		delete it->second;
-	}
-	Databases.clear();
 	if(Async) {
 		AsyncThreadNum = 0;
 		if(1 == Async) {
@@ -637,6 +677,10 @@ void CMoonDb::Clear() noexcept
 		while(!SynchIdleThreads.empty()) {
 			SynchIdleThreads.pop();
 		}
+	}
+	DeletedDbMutexes.clear();
+	for(auto it = DatabaseMutexes.begin(); it != DatabaseMutexes.end(); it++) {
+		DeletedDbMutexes.push_back(*it);
 	}
 }
 
@@ -1427,21 +1471,90 @@ void CMoonDb::AsyncQuery()
 	}
 }
 
+CSQLite* CMoonDb::GetSQLite(const string& dbname)
+{
+	CSQLite* dbobj = nullptr;
+	/*SchemaMutex.lock_shared();
+	auto it = SQLites.find(dbname);
+	if(it != SQLites.end()) {
+		dbobj = it->second;
+	}
+	SchemaMutex.unlock_shared();
+	if(!LoadAllSchemasOnLoading) {
+		string dbpath = DataDirectory + DIRECTORY_SEPARATOR + dbname;
+		if(CFileSystem::Exists(dbpath)) {
+			SchemaMutex.lock();
+			auto it = SQLites.find(dbname);
+			if(it != SQLites.end()) {
+				dbobj = it->second;
+			}
+			else {
+				try {
+					dbobj = new CSQLite(dbpath);
+					SQLites.emplace(dbname, dbobj);
+					shared_timed_mutex* mutex = new shared_timed_mutex;
+					dbobj->SetMutex(mutex);
+				}
+				catch(runtime_error& e) {
+					if(ShowInfo) {
+						cout << e.what() << endl;
+					}
+				}
+			}
+			SchemaMutex.unlock();
+		}
+	}*/
+	return dbobj;
+}
+
+void CMoonDb::SQLiteQuery(CPack& pack)
+{
+	string sql;
+	pack.Get<uint32_t>(sql);
+	unordered_map<string, CAny> data;
+	ParseStringMap(pack, data);
+	pack.Clear();
+	if("CONNECT" == to_upper_copy(sql)) {
+		auto it = data.find("version");
+		if(it == data.end() || it->second.GetType() != FT_STRING) {
+			ThrowError(ERR_DB_WRONG_NAME, "The database is not specified");
+		}
+	}
+	else {
+		auto it = data.find("database");
+		if(it == data.end() || it->second.GetType() != FT_STRING) {
+			ThrowError(ERR_DB_WRONG_NAME, "The database is not specified");
+		}
+		string dbname = it->second.ToString();
+		if(!is_word(dbname)) {
+			ThrowError(ERR_DB_WRONG_NAME, "The database name '" + dbname + "' is wrong");
+		}
+		CSQLite sqlite;
+		sqlite.Connect(SQLiteDirectory + DIRECTORY_SEPARATOR + dbname);
+		if("SELECT" == to_upper_copy(sql.substr(0, 6))) {
+
+		}
+		else {
+
+		}
+	}
+}
+
 void CMoonDb::SQLQuery(CPack& pack)
 {
-//	int32_t recv_len;
-//	// 获取session id
-//	__uint128_t conn_id = 0;
-//	recv_len = MoonSockRecv(sock_client, static_cast<char*>(static_cast<void*>(&conn_id)), 16);
-//	if(16 != recv_len) {
-//		if(SOCKET_ERROR == recv_len) {
-//			cout << "Receive Error: " + MoonLastError() << endl;
-//		}
-//		if(ThreadNum > 0) {
-//			ThreadNum --;
-//		}
-//		return;
-//	}
+	string sql;
+	pack.Get<uint32_t>(sql);
+	unordered_map<string, CAny> data;
+	ParseStringMap(pack, data);
+	pack.Clear();
+	vector<CSQLParser::CToken> tokens;
+	SQLParser.Parse(sql, tokens);
+	for(size_t i = 0; i < tokens.size(); i++) {
+		cout << tokens[i].KType << "," << tokens[i].TType << "," << tokens[i].Content << endl;
+	}
+	for(auto it = data.begin(); it != data.end(); it++) {
+		cout << it->first << "," << it->second << endl;
+	}
 }
 
 void CMoonDb::NoSQLQuery(CPack& pack)
@@ -1474,7 +1587,7 @@ void CMoonDb::NoSQLQuery(CPack& pack)
 		ThrowError(ERR_TABLE_NOT_EXIST, "Table " + tablename + " doesn't exist.");
 		return;
 	}
-	map<string, CAny> data;
+	unordered_map<string, CAny> data;
 	ParseStringMap(pack, data);
 	pack.Clear();
 	shared_timed_mutex* mutex = dbh->GetMutex();
@@ -1539,7 +1652,7 @@ void CMoonDb::NoSQLQuery(CPack& pack)
 	}
 }
 
-void CMoonDb::ParseStringMap(CPack& pack, map<string, CAny>& data)
+void CMoonDb::ParseStringMap(CPack& pack, unordered_map<string, CAny>& data)
 {
 	uint16_t count = 0;
 	pack.Get(count);
@@ -1557,12 +1670,59 @@ void CMoonDb::ParseStringMap(CPack& pack, map<string, CAny>& data)
 
 CDatabase* CMoonDb::GetDatabase(const string& dbname)
 {
+	CDatabase* dbobj = nullptr;
+	SchemaMutex.lock_shared();
 	auto it = Databases.find(dbname);
-	if(it == Databases.end()) {
-		return nullptr;
+	if(it != Databases.end()) {
+		dbobj = it->second;
+	}
+	SchemaMutex.unlock_shared();
+	if(!LoadAllSchemasOnLoading) {
+		string dbpath = DataDirectory + DIRECTORY_SEPARATOR + dbname;
+		if(CFileSystem::Exists(dbpath)) {
+			SchemaMutex.lock();
+			auto it = Databases.find(dbname);
+			if(it != Databases.end()) {
+				dbobj = it->second;
+			}
+			else {
+				try {
+					dbobj = new CDatabase(dbpath);
+					Databases.emplace(dbname, dbobj);
+					dbobj->SetMutex(ApplyForMutex());
+				}
+				catch(runtime_error& e) {
+					if(ShowInfo) {
+						cout << e.what() << endl;
+					}
+				}
+			}
+			SchemaMutex.unlock();
+		}
+	}
+	return dbobj;
+}
+
+shared_timed_mutex* CMoonDb::ApplyForMutex()
+{
+	shared_timed_mutex* mutex = nullptr;
+	if(DeletedDbMutexes.empty()) {
+		mutex = new shared_timed_mutex;
+		DatabaseMutexes.insert(mutex);
 	}
 	else {
-		return it->second;
+		mutex = DeletedDbMutexes.front();
+		DeletedDbMutexes.pop_front();
+	}
+	return mutex;
+}
+
+void CMoonDb::ReleaseMutex(shared_timed_mutex* mutex)
+{
+	auto it = DatabaseMutexes.find(mutex);
+	if(it != DatabaseMutexes.end()) {
+		DeletedDbMutexes.push_back(*it);
+		DatabaseMutexes.erase(it);
 	}
 }
 
@@ -1574,6 +1734,7 @@ void CMoonDb::LoadSchemas()
 		try {
 			CDatabase* db = new CDatabase(DataDirectory + DIRECTORY_SEPARATOR + dbnames[i]);
 			Databases.emplace(dbnames[i], db);
+			db->SetMutex(ApplyForMutex());
 		}
 		catch(runtime_error& e) {
 			if(ShowInfo) {
@@ -1581,14 +1742,18 @@ void CMoonDb::LoadSchemas()
 			}
 		}
 	}
-	if(Databases.size() > 0) {
-		DataMutexes = new shared_timed_mutex[Databases.size()];
-		uint32_t seq = 0;
-		for(auto it = Databases.begin(); it != Databases.end(); it++) {
-			it->second->SetMutex(&DataMutexes[seq]);
-			seq++;
-		}
+}
+
+void CMoonDb::CloseDatabase(const string& dbname)
+{
+	SchemaMutex.lock();
+	auto it = Databases.find(dbname);
+	if(it != Databases.end()) {
+		ReleaseMutex(it->second->GetMutex());
+		delete it->second;
+		Databases.erase(it);
 	}
+	SchemaMutex.unlock();
 }
 
 }

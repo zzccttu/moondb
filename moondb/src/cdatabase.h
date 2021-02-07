@@ -72,8 +72,8 @@ protected:
 	const string Salt2 = "NN/.[~=hks`s7vp52019z,t8fd9}";
 
 	string Path;
-	map<string, CUser> Users;
-	map<string, CTable*> Tables;
+	unordered_map<string, CUser> Users;
+	unordered_map<string, CTable*> Tables;
 
 	CTable* CreateTableObject(const string& name, TableType engine, FieldType rowidtype);
 	void LoadTable(const string& name);

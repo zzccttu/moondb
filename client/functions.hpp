@@ -6,6 +6,7 @@
 #include <cmath>
 #include <sstream>
 #include <limits>
+#include <quadmath.h>
 
 namespace MoonDb {
 
@@ -532,6 +533,25 @@ inline std::string num_to_string(long double v) noexcept
 	ss.precision(std::numeric_limits<long double>::digits10);
 	ss << v;
 	return ss.str();
+}
+
+inline std::string num_to_string(__float128 v) noexcept
+{
+	char buf[64];
+	quadmath_snprintf(buf, sizeof buf, "%.*Qe", FLT128_DIG, v);
+	return std::string(buf);
+}
+
+/**
+ * @brief operator << 输出128位浮点数
+ * @param os 输出流
+ * @param v 整数
+ * @return
+ */
+inline std::ostream & operator << (std::ostream & os, const __float128& v) noexcept
+{
+	os << pad_left_copy(num_to_string(v), static_cast<size_t>(os.width()), ' ');
+	return os;
 }
 
 

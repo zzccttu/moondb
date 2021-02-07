@@ -5,6 +5,7 @@
 #include <string>
 #include <cmath>
 #include <sstream>
+#include <quadmath.h>
 
 #include <boost/algorithm/string/replace.hpp>
 
@@ -223,6 +224,18 @@ inline int64_t _rtrim_find(const std::string& str, const std::string& charmask) 
 		}
 	}
 	return last_not_mask_pos;
+}
+
+inline std::string ltrim_copy(const std::string& str, char c = ' ') noexcept
+{
+	size_t i = 0;
+	size_t size = str.size();
+	for(; i < size; i++) {
+		if(str[i] != c) {
+			break;
+		}
+	}
+	return str.substr(i);
 }
 
 /**
@@ -930,24 +943,18 @@ struct num_limits<uint64_t>
 template<>
 struct num_limits<__int128_t>
 {
-	inline static __int128_t min() noexcept
-	{
-		return - (__int128_t(num_limits<int64_t>::max()) << 64) - __int128_t(num_limits<uint64_t>::max()) - 1;
-	}
-	inline static __int128_t max() noexcept
-	{
-		return (__int128_t(num_limits<int64_t>::max()) << 64) + __int128_t(num_limits<uint64_t>::max());
-	}
+	const static __int128_t min_value = - (__int128_t(9223372036854775807LL) << 64) - __int128_t(18446744073709551615ULL) - 1;
+	const static __int128_t max_value = (__int128_t(9223372036854775807LL) << 64) + __int128_t(18446744073709551615ULL);
+	inline static __int128_t min() noexcept { return min_value; }
+	inline static __int128_t max() noexcept { return max_value; }
 };
 
 template<>
 struct num_limits<__uint128_t>
 {
+	const static __uint128_t max_value = (__uint128_t(18446744073709551615ULL) << 64) + __uint128_t(18446744073709551615ULL);
 	inline static __uint128_t min() noexcept { return 0; }
-	inline static __uint128_t max() noexcept
-	{
-		return (__uint128_t(num_limits<uint64_t>::max()) << 64) + __uint128_t(num_limits<uint64_t>::max());
-	}
+	inline static __uint128_t max() noexcept { return max_value; }
 };
 
 /**
@@ -1066,12 +1073,11 @@ inline std::string num_to_string(double v) noexcept
 	return ss.str();
 }
 
-inline std::string num_to_string(long double v) noexcept
+inline std::string num_to_string(__float128 v) noexcept
 {
-	std::stringstream ss;
-	ss.precision(std::numeric_limits<long double>::digits10);
-	ss << v;
-	return ss.str();
+	char buf[64];
+	quadmath_snprintf(buf, sizeof buf, "%.*Qe", FLT128_DIG, v);
+	return std::string(buf);
 }
 
 
@@ -1088,31 +1094,55 @@ inline std::ostream & operator << (std::ostream & os, const __int128_t& v) noexc
 }
 
 /**
+ * @brief operator << 输出128位浮点数
+ * @param os 输出流
+ * @param v 整数
+ * @return
+ */
+inline std::ostream & operator << (std::ostream & os, const __float128& v) noexcept
+{
+	os << pad_left_copy(num_to_string(v), static_cast<size_t>(os.width()), ' ');
+	return os;
+}
+
+/**
  * @brief stolll 将字符串转为128位整数
  * @param str 待处理字符串
  * @return 返回128位整数
  */
 inline __int128_t stolll(const std::string& str) noexcept
 {
+	static std::vector<__int128_t> mul10;
+	if(mul10.size() == 0) {
+		__int128_t mul = 1;
+		mul10.push_back(mul);
+		for(int32_t i = 1; i <= 39; i++) {
+			mul *= 10;
+			mul10.push_back(mul);
+		}
+	}
+
 	__int128_t v = 0;
 	size_t size = str.size();
 	if(size > 0) {
 		if(str[0] == '-') {
 			for(size_t i = 1; i < size; i ++) {
-				__int128_t tmp = str[i] - '0';
+				/*__int128_t tmp = str[i] - '0';
 				for(size_t j = size - i; j > 1; j--) {
 					tmp *= 10;
 				}
-				v -= tmp;
+				v -= tmp;*/
+				v -= (str[i] - '0') * mul10[size - i - 1];
 			}
 		}
 		else {
 			for(size_t i = 0; i < size; i ++) {
-				__int128_t tmp = str[i] - '0';
+				/*__int128_t tmp = str[i] - '0';
 				for(size_t j = size - i; j > 1; j--) {
 					tmp *= 10;
 				}
-				v += tmp;
+				v += tmp;*/
+				v += (str[i] - '0') * mul10[size - i - 1];
 			}
 		}
 	}
@@ -1126,18 +1156,64 @@ inline __int128_t stolll(const std::string& str) noexcept
  */
 inline __uint128_t stoulll(const std::string& str) noexcept
 {
+	static std::vector<__uint128_t> mul10;
+	if(mul10.size() == 0) {
+		__uint128_t mul = 1;
+		mul10.push_back(mul);
+		for(int32_t i = 1; i <= 39; i++) {
+			mul *= 10;
+			mul10.push_back(mul);
+		}
+	}
+
 	__uint128_t v = 0;
 	size_t size = str.size();
 	if(size > 0) {
 		for(size_t i = 0; i < size; i ++) {
-			__uint128_t tmp = static_cast<__uint128_t>(str[i] - '0');
+			/*__uint128_t tmp = static_cast<__uint128_t>(str[i] - '0');
 			for(size_t j = size - i; j > 1; j--) {
 				tmp *= 10;
 			}
-			v += tmp;
+			v += tmp;*/
+			v += (str[i] - '0') * mul10[size - i - 1];
 		}
 	}
 	return v;
+}
+
+/**
+ * @brief hex2dec 将十六进制数字字符转为十进制数字
+ * @param hexstr 待处理十六进制字符
+ * @return 返回十进制数字
+ */
+inline char hex2dec(char c)
+{
+	if(c >= '0' && c <= '9') {
+		return c - '0';
+	}
+	else if(c >= 'A' && c <= 'F') {
+		return c - 'A' + 10;
+	}
+	else /*if(c >= 'a' && c <= 'f')*/ {
+		return c - 'a' + 10;
+	}
+}
+
+/**
+ * @brief hex2bin 将十六进制字符串转为二进制字符串
+ * @param hexstr 待处理十六进制字符串
+ * @return 返回二进制字符串
+ */
+inline std::string hex2bin(const std::string& hexstr) noexcept
+{
+	size_t size = hexstr.size();
+	std::string binstr(size / 2, '\0');
+	const char* hexp = &hexstr.front();
+	char* binp = &binstr.front();
+	for(size_t i = 0, j = 0; i < size; i += 2, j++) {
+		*(binp + j) = hex2dec(*(hexp + i)) * 16 + hex2dec(*(hexp + i + 1));
+	}
+	return binstr;
 }
 
 }

@@ -1,6 +1,9 @@
 ﻿#include "src/cservice.h"
 #include <getopt.h>
 
+#include <boost/multiprecision/cpp_dec_float.hpp>
+#include "src/cdecimal128.h"
+
 //多线程测试
 void ja()
 {
@@ -266,57 +269,6 @@ void test()
 	number<cpp_dec_float<200> > high_prec_num("435804385043495727493284793274932857439569479238759465942750284370259340535.043580439504395043");
 	cout << std::setprecision(std::numeric_limits<number<cpp_dec_float<200> >>::max_digits10) << log(high_prec_num) << endl;*/
 
-	/*chrono::high_resolution_clock::rep startime, endtime;
-	startime = CTime::Now();
-	mpf_float_100 aa = 2;
-	for (uint64_t i = 0; i < 100000; i++)
-		aa = sin(aa + 0.1);
-	endtime = CTime::Now();
-	cout << std::setprecision(std::numeric_limits<mpf_float_100>::max_digits10) << aa << endl;
-	cout << "  " << (endtime - startime) * CTime::TimeRatio << endl;
-	cout << "    " << aa.backend().data()->_mp_size << endl;
-
-	cpp_dec_float_100 bb = 2;
-	for (uint64_t i = 0; i < 100000; i++)
-		bb = sin(bb + 0.1);
-	endtime = CTime::Now();
-	cout << std::setprecision(std::numeric_limits<cpp_dec_float_100>::max_digits10) << bb << endl;
-	cout << "  " << (endtime - startime) * CTime::TimeRatio << endl;
-
-	cpp_bin_float_100 cc = 2;
-	for (uint64_t i = 0; i < 100000; i++)
-		cc = sin(cc + 0.1);
-	endtime = CTime::Now();
-	cout << std::setprecision(std::numeric_limits<cpp_bin_float_100>::max_digits10) << cc << endl;
-	cout << "  " << (endtime - startime) * CTime::TimeRatio << endl;*/
-
-	mpz_int v = 1;
-	// Do some arithmetic:
-	for(unsigned i = 1; i <= 1000; ++i)
-		v *= i;
-	std::cout << v << std::endl; // prints 1000!
-	// Access the underlying representation:
-	mpz_t z;
-	mpz_init(z);
-	mpz_set(z, v.backend().data());
-	mpz_clear(z);
-
-	mpq_rational gmprational("2/3");
-	std::cout << numerator(gmprational) << std::endl;
-	std::cout << denominator(gmprational) << std::endl;
-
-	{
-		// Operations at variable precision and limited standard library support:
-		mpf_float_100 a = 2;
-		std::cout << std::numeric_limits<mpf_float_100>::max_digits10 << "  " << sqrt(a) << std::endl; // print root-2
-	}
-
-	mpf_float_100 mpf_float_test_a = 1;
-	for(int i = 1; i <= 10000; i ++)
-		mpf_float_test_a *= i;
-	mpf_float_test_a /= 1000;
-	cout << std::setprecision(std::numeric_limits<mpf_float_100>::max_digits10) << mpf_float_test_a << endl;
-
 	CFile file2;
 	file2.Open("./test.txt", CFile::ONLY_WRITE);
 	file2.Write(iconv("的非官方大哥", CIconv::CHARSET_UTF8,  CIconv::CHARSET_GBK));
@@ -374,9 +326,6 @@ void test()
 	pack.Get(test_mpqrat2);
 	cout << "test_mpqrat:" << test_mpqrat2 << endl;*/
 
-	//BigDecimal bd("-12345678.1256");
-	//cout << table.BigDecimalToString(bd, 10, 2) << endl;
-
 	/*uint32_t charnum;
 	string trunstr("的非官方大哥");
 	truncate(trunstr, 14, charnum, CIconv::CHARSET_UTF8);
@@ -398,12 +347,6 @@ void test()
 	CAny any(static_cast<int8_t>(8));
 	cout << "any:" << (int)any.ToInt8() << endl;
 	cout << sizeof(CAny::Data) << endl;
-	mpz_int mpint = 45345435345879;
-	any = *mpint.backend().data();
-	cout << mpint << " " << any.ToMPZInt() << endl;
-	mpq_rational mprat("4534543/5345879");
-	any = *mprat.backend().data();
-	cout << mprat << " " << any.ToMPQRational() << endl;
 
 	/*auto t1 = CTime::Now();
 	int a;
@@ -421,11 +364,6 @@ void test()
 	auto t2 = CTime::Now();
 	cout << a << endl;
 	cout << (t2 - t1) * CTime::TimeRatio << endl;*/
-
-	mpf_float a = 2;
-	mpf_float::default_precision(2000);
-	std::cout << mpf_float::default_precision() << std::endl;
-	std::cout << sqrt(a) << std::endl;
 
 	{
 		CDateTime v(2019, 6, 27, 7561, 2001);
@@ -466,7 +404,7 @@ void test()
 	fields.emplace_back(CRawField("updatedtime", FT_TIMESTAMP, true, true, "CURRENT_TIMESTAMP", true, "CURRENT_TIMESTAMP"));
 	fields.emplace_back(CRawField("title", FT_CHAR, true, false, "", false, "", 200));
 	fields.emplace_back(CRawField("content", FT_CHAR, true, false, "", false, "", 10000));
-	fields.emplace_back(CRawField("price", FT_DOUBLE));
+	fields.emplace_back(CRawField("price", FT_FLOAT64));
 	fields.emplace_back(CRawField("hits", FT_UINT32, true, true, "0"));
 	vector<CIndex> indexes;
 	indexes.emplace_back(CIndex("id", IT_PRIMARY, IM_BTREE, vector<string>{"id"}));
@@ -481,8 +419,8 @@ void test()
 	if (std::regex_match ("-234.3e-2", std::regex("^[+-]?(\\d+|(\\d*[\\.]\\d+)|(\\d+[\\.]\\d*))([eE][+-]?\\d+)?$") ))
 		std::cout << "string literal matched\n";*/
 
-	cout << std::numeric_limits<float>::digits10 << "," << std::numeric_limits<double>::digits10 << "," << std::numeric_limits<long double>::digits10 << endl;
-	cout << std::to_string((float)1.1) << "," << num_to_string((float)1.1) << "," << num_to_string((double)1.1) << "," << num_to_string((long double)1.1) << endl;
+	cout << std::numeric_limits<float>::digits10 << "," << std::numeric_limits<double>::digits10 << "," << FLT128_DIG << endl;
+	cout << std::to_string((float)1.1) << "," << num_to_string((float)1.1) << "," << num_to_string((double)1.1) << "," << num_to_string((__float128)1.1) << endl;
 
 	list<int> li;
 	for(int i = 0; i < 6; i++) {
@@ -552,8 +490,90 @@ void test()
 //	cout << "  " << (threadendtime - threadstarttime) * CTime::TimeRatio << endl;
 }
 
+void test2()
+{
+	boost::multiprecision::cpp_dec_float_100 b = 2;
+	cout << b * b * 3 << endl;
+	/*cout << "a0:"; CDecimal128 a0("123", 8, 2);
+	cout << "a1:"; CDecimal128 a1("123.456", 8, 1);
+	cout << "a2:"; CDecimal128 a2("123.4446", 8, 2);
+	cout << "a3:"; CDecimal128 a3("123.446", 8, 3);
+	cout << "a4:"; CDecimal128 a4("123.446", 10, 6);
+	cout << "a5:"; CDecimal128 a5("12345", 5, -2);
+	cout << "a6:"; CDecimal128 a6("12355", 5, -2);
+	cout << "a7:"; CDecimal128 a7("12345.678", 5, -5);
+	cout << "a8:"; CDecimal128 a8("82345.678", 5, -5);
+	cout << "a9:"; CDecimal128 a9("182345.678", 5, -5);*/
+	cout << num_to_string(num_limits<__uint128_t>::max()).size() << endl;
+//		CDecimal128 aa(-3);
+//		aa.Set(__int128_t(12345678));
+//		aa.Set(__int128_t(12345178));
+//		aa.Set(__int128_t(-12345678));
+//		aa.Set(__int128_t(-12345178));
+//		aa.Set(__uint128_t(12345678));
+//		CDecimal128 aa2(3);
+//		aa2.Set(__uint128_t(12345678));
+	//CDecimal128 aa2(127);
+	//aa2.Set(__int128_t(9999999));
+//		__int128_t ss = -1;
+//		for(int i = 0; i < 100; i++)
+//			ss *= 10;
+//		cout << ss << endl;
+	CDecimal128 abc(0);
+	abc.Set("1234.567");
+	cout << abc.ToString() << endl;
+	cout << abc.ToString(true) << endl;
+	abc.Set("-1234.56");
+	cout << abc.ToString() << endl;
+	cout << abc.ToString(true) << endl;
+	abc.Set("1234");
+	cout << abc.ToString() << endl;
+	cout << abc.ToString(true) << endl;
+	CDecimal128 abc2(-3);
+	abc2.Set("1234567.890");
+	cout << abc2.ToString() << endl;
+	abc2.Set("-1234567.890");
+	cout << abc2.ToString() << endl;
+	abc2.Set("1234560");
+	cout << abc2.ToString() << endl;
+	cout << endl;
+	cout << num_limits<__int128_t>::min() << endl << num_limits<__int128_t>::max() << endl;
+	CDecimal128 abc3(-127);
+	abc3.Set("1.23e140");
+	cout << abc3.ToString() << endl;
+
+	CDecimal128 abc4(-10);
+	abc4 = "-1.23456789";
+	cout << abc4.ToString(true, 4) << endl;
+	abc4 = "1.23";
+	cout << abc4.ToString(false, 3) << endl;
+	abc4 = "0.001298755346562";
+	cout << abc4.ToString(false) << endl;
+	CDecimal128 abc5(-2);
+	abc5 = "123456789";
+	cout << abc5.ToString(true, -3) << endl;
+
+	CDecimal128 a1(4), a2(6);
+	a1 = "11.223344";
+	a2 = "100.6666666666666";
+	cout << (a1 + a2).ToString() << endl;
+	cout << (a1 - a2).ToString() << endl;
+}
+
+void test3()
+{
+	map<int, int> a;
+	a[1] = 11;
+	a[2] = 22;
+	a[3] = 33;
+	auto it = a.find(2);
+	it->second = 222;
+	cout << a[2] << endl;
+}
+
 int main(int argc, char *argv[])
 {
+	//test3();
 	try {
 		string programdir = boost::filesystem::initial_path().string();
 		string programpath = argv[0];
@@ -654,7 +674,7 @@ int main(int argc, char *argv[])
 		//TriggerError("Invalid command line parameter (invalid_argument: " + string(optarg) + " " + e.what() + ").");
 		cout << "Invalid command line parameter (invalid_argument: " + string(optarg) + " " + e.what() + ")." << endl;
 	}
-	catch (exception& e)
+	catch(exception& e)
 	{
 		cout << e.what() << endl;
 	}

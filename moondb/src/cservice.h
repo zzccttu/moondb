@@ -22,7 +22,7 @@ public:
 	static SERVICE_STATUS_HANDLE ServiceHandle;
 	static const char* WinErrorInfo();
 	static void FatalError(const char * sFmt, ...) __attribute__ ((format ( printf, 1, 2))) __attribute((noreturn));
-	static void InfoError(const char * sFmt, ...) __attribute__ ((format ( printf, 1, 2))) __attribute((noreturn));
+	static void InfoError(const char * sFmt, ...) __attribute__ ((format ( printf, 1, 2)));
 	static void Install(string execfile, string inifile, string servicename);
 	static void Uninstall(string servicename);
 	static void SetStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHint);

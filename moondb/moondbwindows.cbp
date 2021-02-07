@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="moondb" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="../bin/moondb" prefix_auto="1" extension_auto="1" />
+				<Option object_output="../obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add directory="C:/mingw64/lib/gcc/x86_64-w64-mingw32/8.1.0/include" />
+					<Add directory="E:/Library/Boost/include/boost-1_73" />
+					<Add directory="../moondb" />
+				</Compiler>
+				<Linker>
+					<Add library="sqlite/libsqlite3.a" />
+					<Add library="gmp/libgmp.a" />
+					<Add library="E:/Library/Boost/lib/libboost_filesystem-mgw8-mt-s-x64-1_73.a" />
+					<Add library="E:/Library/Boost/lib/libboost_system-mgw8-mt-s-x64-1_73.a" />
+					<Add library="E:/Library/Boost/lib/libboost_locale-mgw8-mt-s-x64-1_73.a" />
+					<Add library="C:/mingw64/x86_64-w64-mingw32/lib/libpthread.a" />
+					<Add library="C:/mingw64/x86_64-w64-mingw32/lib/libws2_32.a" />
+					<Add library="C:/mingw64/x86_64-w64-mingw32/lib/libwsock32.a" />
+					<Add library="C:/mingw64/x86_64-w64-mingw32/lib/libiconv.a" />
+					<Add library="C:/mingw64/lib/gcc/x86_64-w64-mingw32/8.1.0/libquadmath.a" />
+				</Linker>
+			</Target>
+			<Target title="Release">
+				<Option output="../bin/moondb" prefix_auto="1" extension_auto="1" />
+				<Option object_output="../obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-march=corei7" />
+					<Add option="-fexpensive-optimizations" />
+					<Add option="-Wextra" />
+					<Add option="-Wall" />
+					<Add option="-std=gnu++14" />
+					<Add option="-fPIC" />
+					<Add option="-m64" />
+					<Add option="-m128bit-long-double" />
+					<Add option="-fext-numeric-literals" />
+					<Add option="-fno-keep-inline-dllexport" />
+					<Add option="-pipe" />
+					<Add option="-fno-bounds-check" />
+					<Add option="-freg-struct-return" />
+					<Add option="-finline-limit=10000" />
+					<Add option="-ftracer" />
+					<Add option="-minline-all-stringops" />
+					<Add option="-fexceptions" />
+					<Add option="-mthreads" />
+					<Add option="-fprefetch-loop-arrays" />
+					<Add option="-DUNICODE" />
+					<Add option="-D_UNICODE" />
+					<Add option="-DWIN32" />
+					<Add option="-DMINGW_HAS_SECURE_API=1" />
+					<Add directory="C:/mingw64/lib/gcc/x86_64-w64-mingw32/8.1.0/include" />
+					<Add directory="E:/Library/Boost/include/boost-1_73" />
+					<Add directory="../moondb" />
+				</Compiler>
+				<Linker>
+					<Add option="-O3" />
+					<Add option="-s" />
+					<Add option="-static-libstdc++" />
+					<Add option="-static-libgcc" />
+					<Add option="-static" />
+					<Add option="-m64" />
+					<Add library="sqlite/libsqlite3.a" />
+					<Add library="gmp/libgmp.a" />
+					<Add library="E:/Library/Boost/lib/libboost_filesystem-mgw8-mt-s-x64-1_73.a" />
+					<Add library="E:/Library/Boost/lib/libboost_system-mgw8-mt-s-x64-1_73.a" />
+					<Add library="E:/Library/Boost/lib/libboost_locale-mgw8-mt-s-x64-1_73.a" />
+					<Add library="C:/mingw64/x86_64-w64-mingw32/lib/libpthread.a" />
+					<Add library="C:/mingw64/x86_64-w64-mingw32/lib/libws2_32.a" />
+					<Add library="C:/mingw64/x86_64-w64-mingw32/lib/libwsock32.a" />
+					<Add library="C:/mingw64/x86_64-w64-mingw32/lib/libiconv.a" />
+					<Add library="C:/mingw64/lib/gcc/x86_64-w64-mingw32/8.1.0/libquadmath.a" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="library/base64.cpp" />
+		<Unit filename="library/base64.h" />
+		<Unit filename="library/md5.cpp" />
+		<Unit filename="library/md5.h" />
+		<Unit filename="library/sha1.cpp" />
+		<Unit filename="library/sha1.h" />
+		<Unit filename="main.cpp" />
+		<Unit filename="src/cany.hpp" />
+		<Unit filename="src/cdatabase.cpp" />
+		<Unit filename="src/cdatabase.h" />
+		<Unit filename="src/cdecimal128.cpp" />
+		<Unit filename="src/cdecimal128.h" />
+		<Unit filename="src/cdecimal64.cpp" />
+		<Unit filename="src/cdecimal64.h" />
+		<Unit filename="src/cfile.hpp" />
+		<Unit filename="src/cfilesystem.hpp" />
+		<Unit filename="src/cfixedmap.hpp" />
+		<Unit filename="src/cfixedmemorystorage.hpp" />
+		<Unit filename="src/ciconv.hpp" />
+		<Unit filename="src/clog.cpp" />
+		<Unit filename="src/clog.h" />
+		<Unit filename="src/cmap.hpp" />
+		<Unit filename="src/cmoondb.cpp" />
+		<Unit filename="src/cmoondb.h" />
+		<Unit filename="src/cmultimutex.hpp" />
+		<Unit filename="src/cpack.hpp" />
+		<Unit filename="src/cparsexml.hpp" />
+		<Unit filename="src/cqueue.hpp" />
+		<Unit filename="src/crandom.hpp" />
+		<Unit filename="src/crunningerror.hpp" />
+		<Unit filename="src/cservice.cpp" />
+		<Unit filename="src/cservice.h" />
+		<Unit filename="src/csqlite.cpp" />
+		<Unit filename="src/csqlite.h" />
+		<Unit filename="src/csqlparser.cpp" />
+		<Unit filename="src/csqlparser.h" />
+		<Unit filename="src/cstring2.hpp" />
+		<Unit filename="src/csystemerror.hpp" />
+		<Unit filename="src/ctable.cpp" />
+		<Unit filename="src/ctable.h" />
+		<Unit filename="src/ctime.hpp" />
+		<Unit filename="src/definition.hpp" />
+		<Unit filename="src/functions.hpp" />
+		<Unit filename="src/header.h" />
+		<Unit filename="src/setting.h" />
+		<Extensions>
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

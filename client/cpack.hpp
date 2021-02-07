@@ -304,14 +304,14 @@ public:
 		this->Read(&val, sizeof(double));
 	}
 
-	inline void Put(const long double & val)
+	inline void Put(const __float128 & val)
 	{
-		this->Write(&val, sizeof(long double));
+		this->Write(&val, sizeof(__float128));
 	}
 
-	inline void Get(long double & val)
+	inline void Get(__float128 & val)
 	{
-		this->Read(&val, sizeof(long double));
+		this->Read(&val, sizeof(__float128));
 	}
 
 	inline void Put(const std::string & val)

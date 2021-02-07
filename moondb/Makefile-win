@@ -1,21 +1,28 @@
 CXX = C:\mingw64\bin\g++
-INCL = -I C:\Boost\include\boost-1_70 -I gmp -I iconv
-LIBS = gmp\libgmp.a C:\Boost\lib\libboost_filesystem-mgw73-mt-s-x64-1_70.a C:\Boost\lib\libboost_system-mgw73-mt-s-x64-1_70.a C:\Boost\lib\libboost_locale-mgw73-mt-s-x64-1_70.a C:\mingw64\x86_64-w64-mingw32\lib\libpthread.a C:\mingw64\x86_64-w64-mingw32\lib\libws2_32.a C:\mingw64\x86_64-w64-mingw32\lib\libwsock32.a C:\mingw64\x86_64-w64-mingw32\lib\libiconv.a
-CXX_FLAGS = -pipe -fno-bounds-check -freg-struct-return -finline-limit=10000 -ftracer -s -minline-all-stringops -fexceptions -mthreads -O3 -m128bit-long-double -static-libstdc++ -static-libgcc -static -std=c++14 -m64 -Wall -W -Wextra -fprefetch-loop-arrays
+
+INCL = -I E:\Library\Boost\include\boost-1_73 -I .
+
+LIBS = sqlite\libsqlite3.a gmp\libgmp.a E:\Library\Boost\lib\libboost_filesystem-mgw8-mt-s-x64-1_73.a E:\Library\Boost\lib\libboost_system-mgw8-mt-s-x64-1_73.a E:\Library\Boost\lib\libboost_locale-mgw8-mt-s-x64-1_73.a C:\mingw64\x86_64-w64-mingw32\lib\libpthread.a C:\mingw64\x86_64-w64-mingw32\lib\libws2_32.a C:\mingw64\x86_64-w64-mingw32\lib\libwsock32.a C:\mingw64\x86_64-w64-mingw32\lib\libiconv.a C:\mingw64\lib\gcc\x86_64-w64-mingw32\8.1.0\libquadmath.a
+
+CXX_FLAGS = -Wall -march=corei7 -fexpensive-optimizations -Wextra -Wall -std=gnu++14 -fPIC -m64 -m128bit-long-double -fext-numeric-literals -fno-keep-inline-dllexport -pipe -fno-bounds-check -freg-struct-return -finline-limit=10000 -ftracer -minline-all-stringops -fexceptions -mthreads -fprefetch-loop-arrays -DUNICODE -D_UNICODE -DWIN32 -DMINGW_HAS_SECURE_API=1
+
+BUILD_FLAGS = -O3 -s -static-libstdc++ -static-libgcc -static -m64
+
 BIN = ..\bin\moondb.exe
 BUILD_DIR = ..\obj\Release\moondb
 
 all:
-	mkdir $(BUILD_DIR)\src
-	mkdir $(BUILD_DIR)\library
-	$(CXX) $(CXX_FLAGS) $(INCL) -c library\base64.cpp -o $(BUILD_DIR)\library\base64.o
-	$(CXX) $(CXX_FLAGS) $(INCL) -c library\BigDecimal.cpp -o $(BUILD_DIR)\library\BigDecimal.o
-	$(CXX) $(CXX_FLAGS) $(INCL) -c library\md5.cpp -o $(BUILD_DIR)\library\md5.o
-	$(CXX) $(CXX_FLAGS) $(INCL) -c library\sha1.cpp -o $(BUILD_DIR)\library\sha1.o
-	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cdatabase.cpp -o $(BUILD_DIR)\src\cdatabase.o
-	$(CXX) $(CXX_FLAGS) $(INCL) -c src\clog.cpp -o $(BUILD_DIR)\src\clog.o
-	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cmoondb.cpp -o $(BUILD_DIR)\src\cmoondb.o
-	$(CXX) $(CXX_FLAGS) $(INCL) -c src\ctable.cpp -o $(BUILD_DIR)\src\ctable.o
-	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cservice.cpp -o $(BUILD_DIR)\src\cservice.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c library\base64.cpp -o $(BUILD_DIR)\base64.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c library\md5.cpp -o $(BUILD_DIR)\md5.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c library\sha1.cpp -o $(BUILD_DIR)\sha1.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cdatabase.cpp -o $(BUILD_DIR)\cdatabase.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cdecimal64.cpp -o $(BUILD_DIR)\cdecimal64.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cdecimal128.cpp -o $(BUILD_DIR)\cdecimal128.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\clog.cpp -o $(BUILD_DIR)\clog.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cmoondb.cpp -o $(BUILD_DIR)\cmoondb.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\ctable.cpp -o $(BUILD_DIR)\ctable.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\cservice.cpp -o $(BUILD_DIR)\cservice.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\csqlparser.cpp -o $(BUILD_DIR)\csqlparser.o
+	$(CXX) $(CXX_FLAGS) $(INCL) -c src\csqlite.cpp -o $(BUILD_DIR)\csqlite.o
 	$(CXX) $(CXX_FLAGS) $(INCL) -c main.cpp -o $(BUILD_DIR)\main.o
-	$(CXX) -o $(BIN) $(BUILD_DIR)\src\cdatabase.o $(BUILD_DIR)\src\clog.o $(BUILD_DIR)\src\cmoondb.o $(BUILD_DIR)\src\ctable.o $(BUILD_DIR)\src\cservice.o $(BUILD_DIR)\library\base64.o $(BUILD_DIR)\library\BigDecimal.o $(BUILD_DIR)\library\md5.o $(BUILD_DIR)\library\sha1.o $(BUILD_DIR)\main.o $(CXX_FLAGS) $(LIBS)
+	$(CXX) -o $(BIN) $(BUILD_DIR)\cdatabase.o $(BUILD_DIR)\cdecimal64.o $(BUILD_DIR)\cdecimal128.o $(BUILD_DIR)\clog.o $(BUILD_DIR)\cmoondb.o $(BUILD_DIR)\ctable.o $(BUILD_DIR)\cservice.o $(BUILD_DIR)\csqlparser.o $(BUILD_DIR)\csqlite.o $(BUILD_DIR)\base64.o $(BUILD_DIR)\md5.o $(BUILD_DIR)\sha1.o $(BUILD_DIR)\main.o $(BUILD_FLAGS) $(LIBS)

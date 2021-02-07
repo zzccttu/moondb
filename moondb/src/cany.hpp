@@ -2,16 +2,16 @@
 
 #include <string>
 #include <limits>
-#include <boost/multiprecision/gmp.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "cpack.hpp"
 #include "crunningerror.hpp"
-#include "../library/BigDecimal.h"
 #include "definition.hpp"
 #include "functions.hpp"
 #include "ctime.hpp"
+#include "cdecimal64.h"
+#include "cdecimal128.h"
 
 namespace MoonDb {
 
@@ -19,6 +19,39 @@ class CAny
 {
 public:
 	inline CAny() noexcept : Type(FT_NONE) {}
+
+	inline CAny(const CAny& v)
+	{
+		Type = v.Type;
+		switch(Type) {
+		case FT_STRING:
+			Data.String = new std::string(*v.Data.String);
+			break;
+		case FT_ICONVSTRING:
+			Data.IconvString = new CString(*v.Data.IconvString);
+			break;
+		default:
+			Data = v.Data;
+			break;
+		}
+	}
+
+	inline CAny(CAny&& v)
+	{
+		Type = v.Type;
+		switch(Type) {
+		case FT_STRING:
+			Data.String = v.Data.String;
+			break;
+		case FT_ICONVSTRING:
+			Data.IconvString = v.Data.IconvString;
+			break;
+		default:
+			Data = v.Data;
+			break;
+		}
+		v.Type = FT_NONE;
+	}
 
 	inline CAny(const bool& v) noexcept
 	{
@@ -88,20 +121,20 @@ public:
 
 	inline CAny(const float& v) noexcept
 	{
-		Type = FT_FLOAT;
-		Data.Float = v;
+		Type = FT_FLOAT32;
+		Data.Float32 = v;
 	}
 
 	inline CAny(const double& v) noexcept
 	{
-		Type = FT_DOUBLE;
-		Data.Double = v;
+		Type = FT_FLOAT64;
+		Data.Float64 = v;
 	}
 
-	inline CAny(const long double& v) noexcept
+	inline CAny(const __float128& v) noexcept
 	{
-		Type = FT_LONGDOUBLE;
-		Data.LongDouble = v;
+		Type = FT_FLOAT128;
+		Data.FLOAT128 = v;
 	}
 
 	inline CAny(const CDate& v) noexcept
@@ -126,29 +159,6 @@ public:
 	{
 		Type = FT_STRING;
 		Data.String = new std::string(v);
-	}
-
-	inline CAny(const MP_INT& mpint) noexcept
-	{
-		Type = FT_MPINT;
-		mpz_init_set(&Data.MPInt, &mpint);
-	}
-
-	inline CAny(const boost::multiprecision::mpz_int& mpint) noexcept
-	{
-		CAny(*mpint.backend().data());
-	}
-
-	inline CAny(const MP_RAT& mprat) noexcept
-	{
-		Type = FT_MPRATIONAL;
-		mpq_init(&Data.MPRat);
-		mpq_set(&Data.MPRat, &mprat);
-	}
-
-	inline CAny(const boost::multiprecision::mpq_rational& mprat) noexcept
-	{
-		CAny(*mprat.backend().data());
 	}
 
 	inline CAny(const CString& v) noexcept
@@ -201,24 +211,18 @@ public:
 		case FT_UINT128:
 			pack.Get(Data.UInt128);
 			break;
-		case FT_FLOAT:
-			pack.Get(Data.Float);
+		case FT_FLOAT32:
+			pack.Get(Data.Float32);
 			break;
-		case FT_DOUBLE:
-			pack.Get(Data.Double);
+		case FT_FLOAT64:
+			pack.Get(Data.Float64);
 			break;
-		case FT_LONGDOUBLE:
-			pack.Get(Data.LongDouble);
-			break;
-		case FT_MPINT:
-			pack.Get(Data.MPInt);
-			break;
-		case FT_MPRATIONAL:
-			pack.Get(Data.MPRat);
+		case FT_FLOAT128:
+			pack.Get(Data.FLOAT128);
 			break;
 		case FT_STRING:
 			Data.String = new std::string;
-			pack.Get<int32_t>(*Data.String);
+			pack.Get<uint32_t>(*Data.String);
 			break;
 		case FT_NULL:
 			break;
@@ -228,7 +232,7 @@ public:
 	}
 
 	// 用于字段缺省值
-	inline CAny(FieldType fieldtype, uint32_t length, CIconv::CharsetType charset, const std::string& defval, const std::map<std::string, uint16_t>& values) noexcept
+	inline CAny(FieldType fieldtype, uint32_t length, uint32_t scale, CIconv::CharsetType charset, const std::string& defval, const std::unordered_map<std::string, uint16_t>& values) noexcept
 	{
 		switch(fieldtype) {
 		case FT_BOOL:
@@ -293,21 +297,31 @@ public:
 		//case FT_SERIAL32:
 		//case FT_SERIAL64:
 		//case FT_SERIAL128:
-		case FT_FLOAT:
-			Type = FT_FLOAT;
-			Data.Float = static_cast<float>(stof(defval));
+		case FT_FLOAT32:
+			Type = FT_FLOAT32;
+			Data.Float32 = static_cast<float>(stof(defval));
 			break;
-		case FT_DOUBLE:
-			Type = FT_DOUBLE;
-			Data.Double = static_cast<double>(stod(defval));
+		case FT_FLOAT64:
+			Type = FT_FLOAT64;
+			Data.Float64 = static_cast<double>(stod(defval));
 			break;
-		case FT_LONGDOUBLE:
-			Type = FT_LONGDOUBLE;
-			Data.LongDouble = static_cast<long double>(stold(defval));
+		case FT_FLOAT128:
+			Type = FT_FLOAT128;
+			Data.FLOAT128 = static_cast<__float128>(strtoflt128(defval.c_str(), NULL));
 			break;
-		case FT_DECIMAL:
-			Type = FT_STRING;
-			Data.String = new std::string(defval);
+		case FT_DECIMAL64:
+			Type = FT_INT64;
+			{
+				CDecimal64 dec(defval, scale);
+				Data.Int64 = dec.GetData();
+			}
+			break;
+		case FT_DECIMAL128:
+			Type = FT_INT128;
+			{
+				CDecimal128 dec(defval, scale);
+				Data.Int128 = dec.GetData();
+			}
 			break;
 		case FT_ENUM:
 			{
@@ -322,12 +336,12 @@ public:
 			}
 			break;
 		case FT_DATE:
-		{
-			Type = FT_DATE;
-			std::vector<std::string> rawdate = explode(defval, '-');
-			Data.Date = CDate(static_cast<int16_t>(stol(rawdate[0])), static_cast<uint8_t>(stoul(rawdate[1])), static_cast<uint8_t>(stoul(rawdate[2])));
-			break;
-		}
+			{
+				Type = FT_DATE;
+				std::vector<std::string> rawdate = explode(defval, '-');
+				Data.Date = CDate(static_cast<int16_t>(stol(rawdate[0])), static_cast<uint8_t>(stoul(rawdate[1])), static_cast<uint8_t>(stoul(rawdate[2])));
+				break;
+			}
 		case FT_TIME:
 			Type = FT_INT64;
 			if(is_digit(defval)) {
@@ -387,14 +401,6 @@ public:
 			Type = FT_STRING;
 			Data.String = new std::string(defval, 0, std::numeric_limits<uint32_t>::max());
 			break;
-		case FT_MPINT:
-			Type = FT_MPINT;
-			StringToMPInt(defval.c_str());
-			break;
-		case FT_MPRATIONAL:
-			Type = FT_MPRATIONAL;
-			StringToMPRat(defval.c_str());
-			break;
 		default:
 			break;
 		}
@@ -451,6 +457,7 @@ public:
 			pack.Get(Data.UInt32);
 			break;
 		case FT_INT64:
+		case FT_DECIMAL64:
 			Type = FT_INT64;
 			pack.Get(Data.Int64);
 			break;
@@ -459,6 +466,7 @@ public:
 			pack.Get(Data.UInt64);
 			break;
 		case FT_INT128:
+		case FT_DECIMAL128:
 			Type = FT_INT128;
 			pack.Get(Data.Int128);
 			break;
@@ -466,23 +474,17 @@ public:
 			Type = FT_UINT128;
 			pack.Get(Data.UInt128);
 			break;
-		case FT_FLOAT:
-			Type = FT_FLOAT;
-			pack.Get(Data.Float);
+		case FT_FLOAT32:
+			Type = FT_FLOAT32;
+			pack.Get(Data.Float32);
 			break;
-		case FT_DOUBLE:
-			Type = FT_DOUBLE;
-			pack.Get(Data.Double);
+		case FT_FLOAT64:
+			Type = FT_FLOAT64;
+			pack.Get(Data.Float64);
 			break;
-		case FT_LONGDOUBLE:
-			Type = FT_LONGDOUBLE;
-			pack.Get(Data.LongDouble);
-			break;
-		case FT_DECIMAL:
-			Type = FT_STRING;
-			Data.String = new std::string(length + 2, '\0');
-			pack.Read(&Data.String->front(), length + 2);
-			ltrim(*Data.String);
+		case FT_FLOAT128:
+			Type = FT_FLOAT128;
+			pack.Get(Data.FLOAT128);
 			break;
 		case FT_ENUM:
 			{
@@ -546,24 +548,6 @@ public:
 			Data.String = new std::string;
 			pack.Get<uint32_t>(*Data.String);
 			break;
-		case FT_MPINT:
-			Type = FT_MPINT;
-			if(length > 0) {
-				pack.Get(Data.MPInt, length);
-			}
-			else {
-				pack.Get(Data.MPInt);
-			}
-			break;
-		case FT_MPRATIONAL:
-			Type = FT_MPRATIONAL;
-			if(length > 0) {
-				pack.Get(Data.MPRat, length);
-			}
-			else {
-				pack.Get(Data.MPRat);
-			}
-			break;
 		default:
 			break;
 		}
@@ -577,39 +561,6 @@ public:
 	inline uint16_t GetType() const noexcept
 	{
 		return Type;
-	}
-
-	inline void StringToMPInt(const char* s)
-	{
-		if(Data.MPInt._mp_d == nullptr)
-			mpz_init(&Data.MPInt);
-		std::size_t n = s ? std::strlen(s) : 0;
-		int radix = 10;
-		if(n && (*s == '0')) {
-			if((n > 1) && ((s[1] == 'x') || (s[1] == 'X'))) {
-				radix = 16;
-				s += 2;
-				n -= 2;
-			}
-			else {
-				radix = 8;
-				n -= 1;
-			}
-		}
-		if(n) {
-			if(0 != mpz_set_str(&Data.MPInt, s, radix))
-				ThrowError(ERR_INTERPRETE_DATA, std::string("The string \"") + s + std::string("\"could not be interpreted as a valid integer."));
-		}
-		else
-			mpz_set_ui(&Data.MPInt, 0);
-	}
-
-	inline void StringToMPRat(const char* s)
-	{
-		if(Data.MPRat._mp_den._mp_d == nullptr)
-			mpq_init(&Data.MPRat);
-		 if(0 != mpq_set_str(&Data.MPRat, s, 10))
-			ThrowError(ERR_INTERPRETE_DATA, std::string("The string \"") + s + std::string("\"could not be interpreted as a valid rational number."));
 	}
 
 	// 用于存储缺省值
@@ -642,12 +593,14 @@ public:
 			pack.Put(Data.UInt32);
 			break;
 		case FT_INT64:
+		case FT_DECIMAL64:
 			pack.Put(Data.Int64);
 			break;
 		case FT_UINT64:
 			pack.Put(Data.UInt64);
 			break;
 		case FT_INT128:
+		case FT_DECIMAL128:
 			pack.Put(Data.Int128);
 			break;
 		case FT_UINT128:
@@ -657,20 +610,14 @@ public:
 		//case FT_SERIAL32:
 		//case FT_SERIAL64:
 		//case FT_SERIAL128:
-		case FT_FLOAT:
-			pack.Put(Data.Float);
+		case FT_FLOAT32:
+			pack.Put(Data.Float32);
 			break;
-		case FT_DOUBLE:
-			pack.Put(Data.Double);
+		case FT_FLOAT64:
+			pack.Put(Data.Float64);
 			break;
-		case FT_LONGDOUBLE:
-			pack.Put(Data.LongDouble);
-			break;
-		case FT_DECIMAL:
-			{
-				BigDecimal bd(*Data.String);
-				pack.Write(pad_left_copy(bd.toString(length, scale), length + 2, ' ').data(), length + 2);
-			}
+		case FT_FLOAT128:
+			pack.Put(Data.FLOAT128);
 			break;
 		case FT_ENUM:
 			pack.Put(Data.UInt16);
@@ -713,29 +660,13 @@ public:
 		case FT_BLOB:
 			pack.Put<uint32_t>(*Data.String);
 			break;
-		case FT_MPINT:
-			if(length > 0) {
-				pack.Put(Data.MPInt, static_cast<uint32_t>(length));
-			}
-			else {
-				pack.Put(Data.MPInt);
-			}
-			break;
-		case FT_MPRATIONAL:
-			if(length > 0) {
-				pack.Put(Data.MPRat, static_cast<uint32_t>(length));
-			}
-			else {
-				pack.Put(Data.MPRat);
-			}
-			break;
 		default:
 			break;
 		}
 	}
 
 	// 用于存储输入值
-	inline void Store(CPack& pack, FieldType fieldtype, uint32_t length, uint32_t scale, CIconv::CharsetType charset, const std::map<std::string, uint16_t>& values) const
+	inline void Store(CPack& pack, FieldType fieldtype, uint32_t length, uint32_t scale, CIconv::CharsetType charset, const std::unordered_map<std::string, uint16_t>& values) const
 	{
 		switch(fieldtype) {
 		case FT_BOOL:
@@ -920,12 +851,12 @@ public:
 		//case FT_SERIAL32:
 		//case FT_SERIAL64:
 		//case FT_SERIAL128:
-		case FT_FLOAT:
-			if(FT_FLOAT == Type) {
-				pack.Put(Data.Float);
+		case FT_FLOAT32:
+			if(FT_FLOAT32 == Type) {
+				pack.Put(Data.Float32);
 			}
-			else if(FT_DOUBLE == Type) {
-				pack.Put(static_cast<float>(Data.Double));
+			else if(FT_FLOAT64 == Type) {
+				pack.Put(static_cast<float>(Data.Float64));
 			}
 			else if(FT_STRING == Type) {
 				pack.Put(static_cast<float>(std::stof(*Data.String)));
@@ -934,9 +865,9 @@ public:
 				ThrowError(ERR_WRONG_DATA_TYPE, std::string("Wrong data type:") + CDefinition::FieldTypeToString(static_cast<FieldType>(Type)));
 			}
 			break;
-		case FT_DOUBLE:
-			if(FT_DOUBLE == Type) {
-				pack.Put(Data.Double);
+		case FT_FLOAT64:
+			if(FT_FLOAT64 == Type) {
+				pack.Put(Data.Float64);
 			}
 			else if(FT_STRING == Type) {
 				pack.Put(static_cast<double>(std::stod(*Data.String)));
@@ -945,32 +876,116 @@ public:
 				ThrowError(ERR_WRONG_DATA_TYPE, std::string("Wrong data type:") + CDefinition::FieldTypeToString(static_cast<FieldType>(Type)));
 			}
 			break;
-		case FT_LONGDOUBLE:
-			if(FT_LONGDOUBLE == Type) {
-				pack.Put(Data.LongDouble);
+		case FT_FLOAT128:
+			if(FT_FLOAT128 == Type) {
+				pack.Put(Data.FLOAT128);
 			}
-			else if(FT_DOUBLE == Type) {
-				pack.Put(static_cast<long double>(Data.Double));
+			else if(FT_FLOAT64 == Type) {
+				pack.Put(static_cast<__float128>(Data.Float64));
 			}
 			else if(FT_STRING == Type) {
-				pack.Put(static_cast<long double>(std::stold(*Data.String)));
+				pack.Put(static_cast<__float128>(strtoflt128(Data.String->c_str(), NULL)));
 			}
 			else {
 				ThrowError(ERR_WRONG_DATA_TYPE, std::string("Wrong data type:") + CDefinition::FieldTypeToString(static_cast<FieldType>(Type)));
 			}
 			break;
-		case FT_DECIMAL:
-			if(FT_STRING == Type)
+		case FT_DECIMAL64:
 			{
-				BigDecimal bd(*Data.String);
-				pack.Write(pad_left_copy(bd.toString(length, scale), length + 2, ' ').data(), length + 2);
+				CDecimal64 dec(scale);
+				switch(Type) {
+				case FT_STRING:
+					dec.Set(*Data.String);
+					break;
+				case FT_FLOAT32:
+					dec.Set(Data.Float32);
+					break;
+				case FT_FLOAT64:
+					dec.Set(Data.Float64);
+					break;
+				case FT_FLOAT128:
+					dec.Set(Data.FLOAT128);
+					break;
+				case FT_INT8:
+					dec.Set(Data.Int8);
+					break;
+				case FT_UINT8:
+					dec.Set(Data.UInt8);
+					break;
+				case FT_INT16:
+					dec.Set(Data.Int16);
+					break;
+				case FT_UINT16:
+					dec.Set(Data.UInt16);
+					break;
+				case FT_INT32:
+					dec.Set(Data.Int32);
+					break;
+				case FT_UINT32:
+					dec.Set(Data.UInt32);
+					break;
+				case FT_INT64:
+					dec.Set(Data.Int64);
+					break;
+				case FT_UINT64:
+					dec.Set(Data.UInt64);
+					break;
+				default:
+					ThrowError(ERR_WRONG_DATA_TYPE, std::string("Wrong data type:") + CDefinition::FieldTypeToString(static_cast<FieldType>(Type)));
+				}
+				pack.Put(dec.GetData());
 			}
-			else if(FT_DOUBLE == Type) {
-				BigDecimal bd(Data.Double);
-				pack.Write(pad_left_copy(bd.toString(length, scale), length + 2, ' ').data(), length + 2);
-			}
-			else {
-				ThrowError(ERR_WRONG_DATA_TYPE, std::string("Wrong data type:") + CDefinition::FieldTypeToString(static_cast<FieldType>(Type)));
+			break;
+		case FT_DECIMAL128:
+			{
+				CDecimal128 dec(scale);
+				switch(Type) {
+				case FT_STRING:
+					dec.Set(*Data.String);
+					break;
+				case FT_FLOAT32:
+					dec.Set(Data.Float32);
+					break;
+				case FT_FLOAT64:
+					dec.Set(Data.Float64);
+					break;
+				case FT_FLOAT128:
+					dec.Set(Data.FLOAT128);
+					break;
+				case FT_INT8:
+					dec.Set(Data.Int8);
+					break;
+				case FT_UINT8:
+					dec.Set(Data.UInt8);
+					break;
+				case FT_INT16:
+					dec.Set(Data.Int16);
+					break;
+				case FT_UINT16:
+					dec.Set(Data.UInt16);
+					break;
+				case FT_INT32:
+					dec.Set(Data.Int32);
+					break;
+				case FT_UINT32:
+					dec.Set(Data.UInt32);
+					break;
+				case FT_INT64:
+					dec.Set(Data.Int64);
+					break;
+				case FT_UINT64:
+					dec.Set(Data.UInt64);
+					break;
+				case FT_INT128:
+					dec.Set(Data.Int128);
+					break;
+				case FT_UINT128:
+					dec.Set(Data.UInt128);
+					break;
+				default:
+					ThrowError(ERR_WRONG_DATA_TYPE, std::string("Wrong data type:") + CDefinition::FieldTypeToString(static_cast<FieldType>(Type)));
+				}
+				pack.Put(dec.GetData());
 			}
 			break;
 		case FT_ENUM:
@@ -1129,56 +1144,6 @@ public:
 				ThrowError(ERR_WRONG_DATA_TYPE, std::string("Wrong data type:") + CDefinition::FieldTypeToString(static_cast<FieldType>(Type)));
 			}
 			break;
-		case FT_MPINT:
-			if(FT_MPINT == Type) {
-				if(length > 0) {
-					pack.Put(Data.MPInt, static_cast<uint32_t>(length));
-				}
-				else {
-					pack.Put(Data.MPInt);
-				}
-			}
-			else if(FT_INT64 == Type) {
-				if(length > 0) {
-					pack.Put(boost::multiprecision::mpz_int(Data.Int64), length);
-				}
-				else {
-					pack.Put(boost::multiprecision::mpz_int(Data.Int64));
-				}
-			}
-			else if(FT_STRING == Type) {
-				if(length > 0) {
-					pack.Put(boost::multiprecision::mpz_int(*Data.String), length);
-				}
-				else {
-					pack.Put(boost::multiprecision::mpz_int(*Data.String));
-				}
-			}
-			else {
-				ThrowError(ERR_WRONG_DATA_TYPE, std::string("Wrong data type:") + CDefinition::FieldTypeToString(static_cast<FieldType>(Type)));
-			}
-			break;
-		case FT_MPRATIONAL:
-			if(FT_MPRATIONAL == Type) {
-				if(length > 0) {
-					pack.Put(Data.MPRat, static_cast<uint32_t>(length));
-				}
-				else {
-					pack.Put(Data.MPRat);
-				}
-			}
-			else if(FT_STRING == Type) {
-				if(length > 0) {
-					pack.Put(boost::multiprecision::mpq_rational(*Data.String), length);
-				}
-				else {
-					pack.Put(boost::multiprecision::mpq_rational(*Data.String));
-				}
-			}
-			else {
-				ThrowError(ERR_WRONG_DATA_TYPE, std::string("Wrong data type:") + CDefinition::FieldTypeToString(static_cast<FieldType>(Type)));
-			}
-			break;
 		default:
 			break;
 		}
@@ -1294,34 +1259,34 @@ public:
 		return Data.UInt128;
 	}
 
-	inline float& ToFloat() noexcept
+	inline float& ToFloat32() noexcept
 	{
-		return Data.Float;
+		return Data.Float32;
 	}
 
-	inline const float& ToFloat() const noexcept
+	inline const float& ToFloat32() const noexcept
 	{
-		return Data.Float;
+		return Data.Float32;
 	}
 
-	inline double& ToDouble() noexcept
+	inline double& ToFloat64() noexcept
 	{
-		return Data.Double;
+		return Data.Float64;
 	}
 
-	inline const double& ToDouble() const noexcept
+	inline const double& ToFloat64() const noexcept
 	{
-		return Data.Double;
+		return Data.Float64;
 	}
 
-	inline long double& ToLongDouble() noexcept
+	inline __float128& ToFloat128() noexcept
 	{
-		return Data.LongDouble;
+		return Data.FLOAT128;
 	}
 
-	inline const long double& ToLongDouble() const noexcept
+	inline const __float128& ToFloat128() const noexcept
 	{
-		return Data.LongDouble;
+		return Data.FLOAT128;
 	}
 
 	inline CDate& ToDate() noexcept
@@ -1342,46 +1307,6 @@ public:
 	inline const CDateTime& ToDateTime() const noexcept
 	{
 		return Data.DateTime;
-	}
-
-	inline MP_INT& ToMPInt() noexcept
-	{
-		return Data.MPInt;
-	}
-
-	inline const MP_INT& ToMPInt() const noexcept
-	{
-		return Data.MPInt;
-	}
-
-	inline boost::multiprecision::mpz_int ToMPZInt() noexcept
-	{
-		return boost::multiprecision::mpz_int(&Data.MPInt);
-	}
-
-	inline const boost::multiprecision::mpz_int ToMPZInt() const noexcept
-	{
-		return boost::multiprecision::mpz_int(&Data.MPInt);
-	}
-
-	inline MP_RAT& ToMPRat() noexcept
-	{
-		return Data.MPRat;
-	}
-
-	inline const MP_RAT& ToMPRat() const noexcept
-	{
-		return Data.MPRat;
-	}
-
-	inline boost::multiprecision::mpq_rational ToMPQRational() noexcept
-	{
-		return boost::multiprecision::mpq_rational(&Data.MPRat);
-	}
-
-	inline const boost::multiprecision::mpq_rational ToMPQRational() const noexcept
-	{
-		return boost::multiprecision::mpq_rational(&Data.MPRat);
 	}
 
 	inline std::string ToString() noexcept
@@ -1505,24 +1430,24 @@ public:
 	inline CAny& operator = (const float& v) noexcept
 	{
 		Reset();
-		Type = FT_FLOAT;
-		Data.Float = v;
+		Type = FT_FLOAT32;
+		Data.Float32 = v;
 		return *this;
 	}
 
 	inline CAny& operator = (const double& v) noexcept
 	{
 		Reset();
-		Type = FT_DOUBLE;
-		Data.Double = v;
+		Type = FT_FLOAT64;
+		Data.Float64 = v;
 		return *this;
 	}
 
-	inline CAny& operator = (const long double& v) noexcept
+	inline CAny& operator = (const __float128& v) noexcept
 	{
 		Reset();
-		Type = FT_LONGDOUBLE;
-		Data.LongDouble = v;
+		Type = FT_FLOAT128;
+		Data.FLOAT128 = v;
 		return *this;
 	}
 
@@ -1539,37 +1464,6 @@ public:
 		Reset();
 		Type = FT_DATETIME;
 		Data.DateTime = v;
-		return *this;
-	}
-
-	inline CAny& operator = (const MP_INT& mpint) noexcept
-	{
-		Reset();
-		Type = FT_MPINT;
-		mpz_init_set(&Data.MPInt, &mpint);
-		return *this;
-	}
-
-	inline CAny& operator = (const boost::multiprecision::mpz_int& mpint) noexcept
-	{
-		Reset();
-		CAny(*mpint.backend().data());
-		return *this;
-	}
-
-	inline CAny& operator = (const MP_RAT& mprat) noexcept
-	{
-		Reset();
-		Type = FT_MPRATIONAL;
-		mpq_init(&Data.MPRat);
-		mpq_set(&Data.MPRat, &mprat);
-		return *this;
-	}
-
-	inline CAny& operator = (const boost::multiprecision::mpq_rational& mprat) noexcept
-	{
-		Reset();
-		CAny(*mprat.backend().data());
 		return *this;
 	}
 
@@ -1635,14 +1529,14 @@ public:
 		case FT_UINT128:
 			Data.UInt128 = v.ToUInt128();
 			break;
-		case FT_FLOAT:
-			Data.Float = v.ToFloat();
+		case FT_FLOAT32:
+			Data.Float32 = v.ToFloat32();
 			break;
-		case FT_DOUBLE:
-			Data.Double = v.ToDouble();
+		case FT_FLOAT64:
+			Data.Float64 = v.ToFloat64();
 			break;
-		case FT_LONGDOUBLE:
-			Data.LongDouble = v.ToLongDouble();
+		case FT_FLOAT128:
+			Data.FLOAT128 = v.ToFloat128();
 			break;
 		case FT_STRING:
 			Data.String = new std::string(v.ToString());
@@ -1650,19 +1544,28 @@ public:
 		case FT_ICONVSTRING:
 			Data.IconvString = new CString(v.ToIconvString());
 			break;
-		case FT_MPINT:
-			Data.MPInt._mp_size = v.ToMPInt()._mp_size;
-			mpz_init2(&Data.MPInt, static_cast<mp_bitcnt_t>(static_cast<uint32_t>(::abs(Data.MPInt._mp_size)) * GMP_LIMB_BITS));
-			break;
-		case FT_MPRATIONAL:
-			Data.MPRat._mp_den._mp_size = v.ToMPRat()._mp_den._mp_size;
-			mpz_init2(&Data.MPRat._mp_den, static_cast<mp_bitcnt_t>(static_cast<uint32_t>(::abs(Data.MPRat._mp_den._mp_size)) * GMP_LIMB_BITS));
-			Data.MPRat._mp_num._mp_size = v.ToMPRat()._mp_num._mp_size;
-			mpz_init2(&Data.MPRat._mp_num, static_cast<mp_bitcnt_t>(static_cast<uint32_t>(::abs(Data.MPRat._mp_num._mp_size)) * GMP_LIMB_BITS));
-			break;
 		default:
 			break;
 		}
+		return *this;
+	}
+
+	inline CAny& operator = (CAny&& v)
+	{
+		Reset();
+		Type = v.Type;
+		switch(Type) {
+		case FT_STRING:
+			Data.String = v.Data.String;
+			break;
+		case FT_ICONVSTRING:
+			Data.IconvString = v.Data.IconvString;
+			break;
+		default:
+			Data = v.Data;
+			break;
+		}
+		v.Type = FT_NONE;
 		return *this;
 	}
 
@@ -1691,41 +1594,17 @@ public:
 			os << v.ToInt128(); break;
 		case FT_UINT128:
 			os << v.ToUInt128(); break;
-		case FT_FLOAT:
-			os << v.ToFloat(); break;
-		case FT_DOUBLE:
-			os << v.ToDouble(); break;
-		case FT_LONGDOUBLE:
-			os << v.ToLongDouble(); break;
+		case FT_FLOAT32:
+			os << v.ToFloat32(); break;
+		case FT_FLOAT64:
+			os << v.ToFloat64(); break;
+		case FT_FLOAT128:
+			os << v.ToFloat128(); break;
 		case FT_DATE:
 			os << num_to_string(v.ToDate().Year) + "-" + num_to_string(v.ToDate().Month) + "-" + num_to_string(v.ToDate().Day); break;
 		case FT_DATETIME:
 			os << v.ToDateTime().to_string();
 			break;
-		case FT_MPINT:
-		{
-			void *(*alloc_func_ptr) (size_t);
-			void *(*realloc_func_ptr) (void *, size_t, size_t);
-			void (*free_func_ptr) (void *, size_t);
-			const char* ps = mpz_get_str (nullptr, 10, &v.ToMPInt());
-			std::string s = ps;
-			mp_get_memory_functions(&alloc_func_ptr, &realloc_func_ptr, &free_func_ptr);
-			(*free_func_ptr)((void*)ps, std::strlen(ps) + 1);
-			os << s;
-			break;
-		}
-		case FT_MPRATIONAL:
-		{
-			void *(*alloc_func_ptr) (size_t);
-			void *(*realloc_func_ptr) (void *, size_t, size_t);
-			void (*free_func_ptr) (void *, size_t);
-			const char* ps = mpq_get_str (nullptr, 10, &v.ToMPRat());
-			std::string s = ps;
-			mp_get_memory_functions(&alloc_func_ptr, &realloc_func_ptr, &free_func_ptr);
-			(*free_func_ptr)((void*)ps, std::strlen(ps) + 1);
-			os << s;
-			break;
-		}
 		case FT_STRING:
 			os << v.ToString(); break;
 		case FT_ICONVSTRING:
@@ -1746,13 +1625,11 @@ public:
 		uint64_t UInt64;
 		__int128_t Int128;
 		__uint128_t UInt128;
-		float Float;
-		double Double;
-		long double LongDouble;
+		float Float32;
+		double Float64;
+		__float128 FLOAT128;
 		CDate Date;
 		CDateTime DateTime;
-		MP_INT MPInt;
-		MP_RAT MPRat;
 		std::string* String;
 		CString* IconvString;
 	} Data;
@@ -1768,12 +1645,6 @@ protected:
 		case FT_ICONVSTRING:
 			delete Data.IconvString;
 			Data.IconvString = nullptr;
-			break;
-		case FT_MPINT:
-			mpz_clear(&Data.MPInt);
-			break;
-		case FT_MPRATIONAL:
-			mpq_clear(&Data.MPRat);
 			break;
 		}
 	}

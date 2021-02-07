@@ -125,7 +125,7 @@ public:
 	*/
 	inline static void CopyFile(const std::string& from, const std::string& to)
 	{
-		return boost::filesystem::copy_file(boost::filesystem::path(from), boost::filesystem::path(to));
+		boost::filesystem::copy_file(boost::filesystem::path(from), boost::filesystem::path(to));
 	}
 
 	/**
@@ -135,7 +135,7 @@ public:
 	*/
 	inline static void RenameFile(const std::string& oldname, const std::string& newname)
 	{
-		return boost::filesystem::rename(boost::filesystem::path(oldname), boost::filesystem::path(newname));
+		boost::filesystem::rename(boost::filesystem::path(oldname), boost::filesystem::path(newname));
 	}
 
 	/**

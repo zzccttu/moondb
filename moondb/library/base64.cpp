@@ -6,7 +6,6 @@
 const std::string Base64::_base64_table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 std::string Base64::Encode(const unsigned char * str,int bytes) {
-    int num = 0,bin = 0,i;
     std::string _encode_result;
     const unsigned char * current;
     current = str;
@@ -54,7 +53,7 @@ std::string Base64::Decode(const char *str,int length) {
         -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2,
         -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2
     };
-    int bin = 0,i=0,pos=0;
+	int bin = 0,i=0;
     std::string _decode_result;
     const char *current = str;
     char ch;
@@ -72,7 +71,7 @@ std::string Base64::Decode(const char *str,int length) {
             }
             continue;
         }
-        ch = DecodeTable[ch];
+		ch = DecodeTable[static_cast<size_t>(ch)];
         //这个很重要，用来过滤所有不合法的字符
         if (ch < 0 ) { /* a space or some other separator character, we simply skip over */
             continue;

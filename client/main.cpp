@@ -63,6 +63,12 @@ void generaltest()
 
 int main()
 {
+//	string str = "ab";
+//	str.push_back('\0');
+//	str += "'\"\b\n\r\t\\ghggh";
+//	cout << CMoonDbClient::Quote(str) << endl;
+//	return 0;
+
 #if defined(_WIN32)
 	WSADATA ws;
 	if (::WSAStartup(MAKEWORD(2, 2), &ws) != 0) {

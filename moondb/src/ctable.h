@@ -1,7 +1,6 @@
 #pragma once
 
 #include "header.h"
-#include "../library/BigDecimal.h"
 #include <shared_mutex>
 
 namespace MoonDb {
@@ -19,9 +18,9 @@ public:
 	virtual bool Open(const string& path, const string& name);
 
 	virtual ~CTable();
-	virtual void InsertData(map<string, CAny>& data, CPack& ret) = 0;
-	virtual void ReplaceData(const CAny& rowid, map<string, CAny>& data, CPack& ret) = 0;
-	virtual void UpdateData(const CAny& rowid, map<string, CAny>& data, CPack& ret) = 0;
+	virtual void InsertData(unordered_map<string, CAny>& data, CPack& ret) = 0;
+	virtual void ReplaceData(const CAny& rowid, unordered_map<string, CAny>& data, CPack& ret) = 0;
+	virtual void UpdateData(const CAny& rowid, unordered_map<string, CAny>& data, CPack& ret) = 0;
 	virtual void DeleteData(const CAny& rowid, CPack& ret) = 0;
 	virtual void GetData(const CAny& rowid, CPack& ret) = 0;
 
@@ -36,7 +35,7 @@ public:
 	void Test()
 	{
 		string str = "'a','b\\'', 'c',\"d\\\"\",'e'";
-		map<string, uint16_t> values;
+		unordered_map<string, uint16_t> values;
 		vector<string> flipvalues;
 		this->EnumValuesToVector(str, values, flipvalues);
 		cout << endl;
@@ -59,14 +58,14 @@ protected:
 		uint32_t Length;					/**< 长度或精度 */
 		uint32_t Scale;						/**< 小数点后的位数 */
 		CIconv::CharsetType Charset;		/**< 字符集 */
-		map<string, uint16_t> Values;		/**< ENUM的选项值 */
+		unordered_map<string, uint16_t> Values;		/**< ENUM的选项值 */
 		vector<string> FlipValues;			/**< ENUM的选项值（反转） */
 		string Comment;						/**< 备注 */
 		uint64_t Position;					/**< 固定长度字段的位置 */
 		CField() = default;
 		CField(const string& name, FieldType type, bool notnull = true, bool defdef = false, const CAny& defval = "", bool onupdatedef = false,
 			   const CAny& valonupdate = "", uint32_t length = 0, uint32_t scale = 0, CIconv::CharsetType charset = CIconv::CHARSET_NONE,
-			   const map<string, uint16_t>& values = {}, const vector<string>& flipvalues = {}, const string& comment = "") noexcept
+			   const unordered_map<string, uint16_t>& values = {}, const vector<string>& flipvalues = {}, const string& comment = "") noexcept
 			: Name(name), Type(type), NotNull(notnull), DefaultDefined(defdef), OnUpdateDefined(onupdatedef), Length(length), Scale(scale),
 			  Charset(charset), Values(values), FlipValues(flipvalues), Comment(comment), Position(0)
 		{
@@ -79,9 +78,9 @@ protected:
 
 	size_t ComputeFixedRowLength() noexcept;
 
-	void GetInputValue(CPack& pack, bool ifexist, CAny* data, const string& fieldname, FieldType fieldtype, uint32_t length, uint32_t scale, CIconv::CharsetType charset, bool defdef, const CAny& defval, const map<string, uint16_t>& values);
+	void GetInputValue(CPack& pack, bool ifexist, CAny* data, const string& fieldname, FieldType fieldtype, uint32_t length, uint32_t scale, CIconv::CharsetType charset, bool defdef, const CAny& defval, const unordered_map<string, uint16_t>& values);
 
-	void EnumValuesToVector(const string& rawvalues, map<string, uint16_t>& values, vector<string>& flipvalues);
+	void EnumValuesToVector(const string& rawvalues, unordered_map<string, uint16_t>& values, vector<string>& flipvalues);
 
 	virtual void IncreaseAutoInc(void* id) noexcept = 0;
 
@@ -307,7 +306,7 @@ protected:
 				}
 				rtrim(v, "0");
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(v);
+				ret.Put<uint32_t>(v);
 				break;
 			}
 			case FT_INT8:
@@ -394,39 +393,50 @@ protected:
 				//ret.Put<int32_t>(num_to_string(v));
 				break;
 			}
-			case FT_FLOAT:
+			case FT_FLOAT32:
 			{
 				float v;
 				row.Get(v);
-				ret.Put(static_cast<uint16_t>(FT_FLOAT));
+				ret.Put(static_cast<uint16_t>(FT_FLOAT32));
 				ret.Put(v);
 				break;
 			}
-			case FT_DOUBLE:
+			case FT_FLOAT64:
 			{
 				double v;
 				row.Get(v);
-				ret.Put(static_cast<uint16_t>(FT_DOUBLE));
+				ret.Put(static_cast<uint16_t>(FT_FLOAT64));
 				ret.Put(v);
 				break;
 			}
-			case FT_LONGDOUBLE:
+			case FT_FLOAT128:
 			{
-				long double v;
+				__float128 v;
 				row.Get(v);
-				//ret.Put(static_cast<uint16_t>(FT_LONGDOUBLE));
+				//ret.Put(static_cast<uint16_t>(FT_FLOAT128));
 				//ret.Put(v);
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(num_to_string(v));
+				ret.Put<uint32_t>(num_to_string(v));
 				break;
 			}
-			case FT_DECIMAL:
+			case FT_DECIMAL64:
 			{
-				string v(field->Length + 2, '\0');
-				row.Read(&v.front(), field->Length + 2);
-				ltrim(v);
+				int64_t v;
+				row.Get(v);
+				CDecimal64 dec(field->Scale);
+				dec.SetData(v);
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(v);
+				ret.Put<uint32_t>(dec.ToString(false));
+				break;
+			}
+			case FT_DECIMAL128:
+			{
+				__int128_t v;
+				row.Get(v);
+				CDecimal128 dec(field->Scale);
+				dec.SetData(v);
+				ret.Put(static_cast<uint16_t>(FT_STRING));
+				ret.Put<uint32_t>(dec.ToString(false));
 				break;
 			}
 			case FT_ENUM:
@@ -438,7 +448,7 @@ protected:
 					sv = string(field->FlipValues[v - 1]);
 				}
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(sv);
+				ret.Put<uint32_t>(sv);
 				break;
 			}
 			case FT_DATE:
@@ -446,22 +456,22 @@ protected:
 				CDate v;
 				row.Read(&v, sizeof(CDate));
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(num_to_string(v.Year) + "-" + num_to_string(v.Month) + "-" + num_to_string(v.Day));
+				ret.Put<uint32_t>(num_to_string(v.Year) + "-" + num_to_string(v.Month) + "-" + num_to_string(v.Day));
 				break;
 			}
 			case FT_TIME:
 			{
 				int64_t v;
 				row.Get(v);
-				long double ldv = static_cast<long double>(v) / CTime::NanoTime;
+				__float128 ldv = static_cast<__float128>(v) / CTime::NanoTime;
 				v = static_cast<int64_t>(ldv);
-				double fraction = static_cast<double>(::fabs(ldv - v));
+				double fraction = static_cast<double>(fabsq(ldv - v));
 				int64_t hour = v / 3600;
 				int32_t leftseconds = v % 3600;
 				int32_t minute = leftseconds / 60;
 				int32_t second = leftseconds % 60;
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(num_to_string(hour) + ":" + pad_left_copy(num_to_string(::abs(minute)), 2, '0') + ":" + pad_left_copy(num_to_string(::abs(second)), 2, '0') + "." + num_to_string(fraction));
+				ret.Put<uint32_t>(num_to_string(hour) + ":" + pad_left_copy(num_to_string(::abs(minute)), 2, '0') + ":" + pad_left_copy(num_to_string(::abs(second)), 2, '0') + "." + num_to_string(fraction));
 				break;
 			}
 			case FT_DATETIME:
@@ -469,7 +479,7 @@ protected:
 				CDateTime v;
 				row.Read(&v, sizeof(CDate));
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(v.to_string());
+				ret.Put<uint32_t>(v.to_string());
 				break;
 			}
 			case FT_TIMESTAMP:
@@ -487,7 +497,7 @@ protected:
 				string v;
 				row.Get<uint16_t>(v, field->Length);
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(v);
+				ret.Put<uint32_t>(v);
 				break;
 			}
 			case FT_VARCHAR:
@@ -497,7 +507,7 @@ protected:
 				string v;
 				row.Get<uint16_t>(v);
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(v);
+				ret.Put<uint32_t>(v);
 				break;
 			}
 			case FT_TEXT:
@@ -507,7 +517,7 @@ protected:
 				string v;
 				row.Get<uint32_t>(v);
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(v);
+				ret.Put<uint32_t>(v);
 				break;
 			}
 			case FT_BINARY:
@@ -515,7 +525,7 @@ protected:
 				string v;
 				row.Get<uint16_t>(v, field->Length);
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(v);
+				ret.Put<uint32_t>(v);
 				break;
 			}
 			case FT_VARBINARY:
@@ -523,7 +533,7 @@ protected:
 				string v;
 				row.Get<uint16_t>(v);
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(v);
+				ret.Put<uint32_t>(v);
 				break;
 			}
 			case FT_BLOB:
@@ -531,35 +541,7 @@ protected:
 				string v;
 				row.Get<uint32_t>(v);
 				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(v);
-				break;
-			}
-			case FT_MPINT:
-			{
-				MP_INT v;
-				if(field->Length > 0) {
-					row.Get(v, field->Length);
-				}
-				else {
-					row.Get(v);
-				}
-				mpz_int sv(&v);
-				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(sv.str());
-				break;
-			}
-			case FT_MPRATIONAL:
-			{
-				MP_RAT v;
-				if(field->Length > 0) {
-					row.Get(v, field->Length);
-				}
-				else {
-					row.Get(v);
-				}
-				mpq_rational sv(&v);
-				ret.Put(static_cast<uint16_t>(FT_STRING));
-				ret.Put<int32_t>(sv.str());
+				ret.Put<uint32_t>(v);
 				break;
 			}
 			default:
@@ -574,7 +556,7 @@ protected:
 	string Name;				/**< 表名称 */
 	uint16_t FieldNum;			/**< 字段数量 */
 	CMap<string, CField> Fields;/**< 字段 */
-	map<string, CIndex> Indexes;/**< 索引 */
+	unordered_map<string, CIndex> Indexes;/**< 索引 */
 	TableType Engine;			/**< 表引擎 */
 	string RowIdField;			/**< rowid字段名 */
 	FieldType RowIdType;		/**< rowid类型 */

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 namespace MoonDb {
 
@@ -69,7 +69,7 @@ public:
 
 protected:
 	std::vector<T_Value> Values;
-	std::map<T_Key, size_t> Keys;
+	std::unordered_map<T_Key, size_t> Keys;
 };
 
 }

@@ -3,6 +3,8 @@
 //#define UNICODE 1
 #undef UNICODE
 #if defined(_WIN32)
+	// 注意将_mingw.h文件中的_WIN32_WINNT值置为0x0603
+	#include <ws2tcpip.h>
 	#define DIRECTORY_SEPARATOR '\\'
 	#if defined(UNICODE)
 		#define STRPOINTER LPWSTR
@@ -23,4 +25,4 @@
 //#define GCC 1
 //#endif
 
-#define MOONDB_VERSION "2.0"
+#define MOONDB_VERSION "3.0"

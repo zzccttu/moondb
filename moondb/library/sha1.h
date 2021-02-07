@@ -20,7 +20,7 @@
  * 		Please read the file sha1.cpp for more information.
  *
  * 		This is the same as MD5.
- * /*
+ *
  *  Created on: 2009-3-26
  *      Author: root
  *      usage	:	char SHABuffer[41];

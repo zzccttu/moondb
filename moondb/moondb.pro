@@ -17,32 +17,43 @@ CONFIG -= qt
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-# INCLUDEPATH += C:\Qt\5.12.2\mingw73_64\include
-INCLUDEPATH += C:\Boost\include\boost-1_70
-INCLUDEPATH += $$PWD/gmp
-INCLUDEPATH += $$PWD/iconv
+INCLUDEPATH += E:\Library\Boost\include\boost-1_73
+INCLUDEPATH += C:\mingw64\lib\gcc\x86_64-w64-mingw32\8.1.0\include
+INCLUDEPATH += $$PWD
 
-LIBS += -LC:\Boost\lib -lboost_filesystem-mgw73-mt-s-x64-1_70 -lboost_system-mgw73-mt-s-x64-1_70 -lboost_locale-mgw73-mt-s-x64-1_70
+LIBS += -LE:\Library\Boost\lib -lboost_filesystem-mgw8-mt-s-x64-1_73 -lboost_system-mgw8-mt-s-x64-1_73 -lboost_locale-mgw8-mt-s-x64-1_73
+LIBS += -LC:\mingw64\lib\gcc\x86_64-w64-mingw32\8.1.0 -lstdc++ -lquadmath
 LIBS += -lpthread -lwsock32 -lws2_32
-LIBS += -L$$PWD/gmp -lgmp
 LIBS += -L$$PWD/iconv -liconv
+LIBS += -L$$PWD/gmp -lgmp
+LIBS += -L$$PWD/sqlite -lsqlite3
 
 SOURCES += \
 	main.cpp \
+	library/md5.cpp \
+	library/sha1.cpp \
+	library/base64.cpp \
+	src/cdecimal64.cpp \
+	src/cdecimal128.cpp \
 	src/cmoondb.cpp \
 	src/cdatabase.cpp \
+	src/csqlite.cpp \
 	src/ctable.cpp \
 	src/clog.cpp \
-    library/md5.cpp \
-    library/sha1.cpp \
-    library/base64.cpp \
-	library/BigDecimal.cpp \
-    src/cservice.cpp
+	src/cservice.cpp \
+	src/csqlparser.cpp
 
 HEADERS += \
+	library/md5.h \
+	library/sha1.h \
+	library/base64.h \
+	src/cdecimal64.h \
+	src/cdecimal128.h \
 	src/cmoondb.h \
 	src/cfile.hpp \
 	src/cfilesystem.hpp \
+	src/cmultimutex.hpp \
+	src/csqlite.h \
 	src/cstring.hpp \
 	src/crandom.hpp \
 	src/csystemerror.hpp \
@@ -63,10 +74,7 @@ HEADERS += \
 	src/cany.hpp \
 	src/clog.h \
 	src/cqueue.hpp \
-	library/md5.h \
-	library/sha1.h \
-	library/base64.h \
-	library/BigDecimal.h \
-    src/cservice.h
+	src/cservice.h \
+	src/csqlparser.h
 
 TARGET = ../../../bin/moondb

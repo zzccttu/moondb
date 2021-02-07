@@ -80,10 +80,10 @@ bool CTable::Open(const string& path, const string& name)
 		EnumValuesToVector(rawvalues, field.Values, flipvalues);
 		pack.Get<uint32_t>(field.Comment);
 		if(field.DefaultDefined) {
-			field.DefaultValue = CAny(field.Type, field.Length, field.Charset, defval, field.Values);
+			field.DefaultValue = CAny(field.Type, field.Length, field.Scale, field.Charset, defval, field.Values);
 		}
 		if(field.OnUpdateDefined) {
-			field.ValueOnUpdate = CAny(field.Type, field.Length, field.Charset, updval, field.Values);
+			field.ValueOnUpdate = CAny(field.Type, field.Length, field.Scale, field.Charset, updval, field.Values);
 		}
 	}
 
@@ -163,11 +163,11 @@ bool CTable::Create(const string& path, const string& name, TableType engine, Fi
 		EnumValuesToVector(rawfield->Values, field.Values, field.FlipValues);
 		field.DefaultDefined = rawfield->DefaultDefined;
 		if(field.DefaultDefined) {
-			field.DefaultValue = CAny(field.Type, field.Length, field.Charset, rawfield->DefaultValue, field.Values);
+			field.DefaultValue = CAny(field.Type, field.Length, field.Scale, field.Charset, rawfield->DefaultValue, field.Values);
 		}
 		field.OnUpdateDefined = rawfield->OnUpdateDefined;
 		if(field.OnUpdateDefined) {
-			field.ValueOnUpdate = CAny(field.Type, field.Length, field.Charset, rawfield->ValueOnUpdate, field.Values);
+			field.ValueOnUpdate = CAny(field.Type, field.Length, field.Scale, field.Charset, rawfield->ValueOnUpdate, field.Values);
 		}
 		field.Comment = rawfield->Comment;
 		Fields.insert(rawfield->Name, field);
@@ -239,7 +239,7 @@ size_t CTable::GetFieldLength(const CField& field) const noexcept
 	switch(field.Type) {
 	case FT_BOOL:
 		return 1;
-	case FT_BIT:// Length最多为128，返回最大为16
+	case FT_BIT:// Length最多为128，返回最大为16字节
 		switch(static_cast<size_t>(::ceil(static_cast<double>(field.Length) / static_cast<double>(8)))) {
 		case 1:
 			return 1;
@@ -293,14 +293,16 @@ size_t CTable::GetFieldLength(const CField& field) const noexcept
 		return 8;
 	case FT_SERIAL128:
 		return 16;
-	case FT_FLOAT:
+	case FT_FLOAT32:
 		return 4;
-	case FT_DOUBLE:
+	case FT_FLOAT64:
 		return 8;
-	case FT_LONGDOUBLE:
+	case FT_FLOAT128:
 		return 16;
-	case FT_DECIMAL:
-		return field.Length + 2;// 加上负号和小数点的1个字节
+	case FT_DECIMAL64:
+		return 8;
+	case FT_DECIMAL128:
+		return 16;
 	case FT_ENUM:
 		return 2;
 	case FT_DATE:
@@ -323,10 +325,6 @@ size_t CTable::GetFieldLength(const CField& field) const noexcept
 		return 8 + numeric_limits<uint32_t>::max();
 	case FT_BLOB://4个字节长度
 		return 4 + numeric_limits<uint32_t>::max();
-	case FT_MPINT:
-		return 4 + sizeof(mp_limb_t) * field.Length;
-	case FT_MPRATIONAL:
-		return (4 + sizeof(mp_limb_t) * field.Length) * 2;
 	default:
 		return 0;
 	}
@@ -347,7 +345,7 @@ size_t CTable::ComputeFixedRowLength() noexcept
 	return length;
 }
 
-void CTable::GetInputValue(CPack& pack, bool ifexist, CAny* data, const string& fieldname, FieldType fieldtype, uint32_t length, uint32_t scale, CIconv::CharsetType charset, bool defdef, const CAny& defval, const map<string, uint16_t>& values)
+void CTable::GetInputValue(CPack& pack, bool ifexist, CAny* data, const string& fieldname, FieldType fieldtype, uint32_t length, uint32_t scale, CIconv::CharsetType charset, bool defdef, const CAny& defval, const unordered_map<string, uint16_t>& values)
 {
 	if(!ifexist) {
 		if(defdef) {
@@ -362,7 +360,7 @@ void CTable::GetInputValue(CPack& pack, bool ifexist, CAny* data, const string& 
 	}
 }
 
-void CTable::EnumValuesToVector(const string& rawvalues, map<string, uint16_t>& values, vector<string>& flipvalues)
+void CTable::EnumValuesToVector(const string& rawvalues, unordered_map<string, uint16_t>& values, vector<string>& flipvalues)
 {
 	if(rawvalues[0] != '\'' && rawvalues[0] != '"') {
 		vector<string>flipvalues = explode(rawvalues, ',');

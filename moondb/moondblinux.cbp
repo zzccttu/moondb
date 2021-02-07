@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="moondb" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="../bin/moondb" prefix_auto="1" extension_auto="1" />
+				<Option object_output="../obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add directory="/usr/local/include" />
+					<Add directory="gmp" />
+					<Add directory="iconv" />
+				</Compiler>
+				<Linker>
+					<Add library="/usr/local/lib/libgmp.a" />
+					<Add library="/usr/local/lib/libboost_filesystem.a" />
+					<Add library="/usr/local/lib/libboost_system.a" />
+					<Add library="/usr/local/lib/libboost_locale.a" />
+					<Add library="/usr/local/lib/libboost_thread.a" />
+				</Linker>
+			</Target>
+			<Target title="Release">
+				<Option output="../bin/moondb" prefix_auto="1" extension_auto="1" />
+				<Option object_output="../obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add directory="/usr/local/include" />
+					<Add directory="gmp" />
+					<Add directory="iconv" />
+				</Compiler>
+				<Linker>
+					<Add option="-pthread" />
+					<Add library="/usr/local/lib/libgmp.a" />
+					<Add library="/usr/local/lib/libboost_filesystem.a" />
+					<Add library="/usr/local/lib/libboost_system.a" />
+					<Add library="/usr/local/lib/libboost_locale.a" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="cdatabase.cpp" />
+		<Unit filename="cdatabase.h" />
+		<Unit filename="cfile.hpp" />
+		<Unit filename="cfilesystem.hpp" />
+		<Unit filename="cglobal.hpp" />
+		<Unit filename="ciconv.hpp" />
+		<Unit filename="clog.cpp" />
+		<Unit filename="clog.h" />
+		<Unit filename="cmap.hpp" />
+		<Unit filename="cmemorystorage.hpp" />
+		<Unit filename="cmoondb.cpp" />
+		<Unit filename="cmoondb.h" />
+		<Unit filename="cpack.hpp" />
+		<Unit filename="cparsexml.hpp" />
+		<Unit filename="crandom.hpp" />
+		<Unit filename="crunningerror.hpp" />
+		<Unit filename="csystemerror.hpp" />
+		<Unit filename="ctable.cpp" />
+		<Unit filename="ctable.h" />
+		<Unit filename="ctime.hpp" />
+		<Unit filename="definition.hpp" />
+		<Unit filename="functions.hpp" />
+		<Unit filename="header.h" />
+		<Unit filename="library/BigDecimal.cpp" />
+		<Unit filename="library/BigDecimal.h" />
+		<Unit filename="library/base64.cpp" />
+		<Unit filename="library/base64.h" />
+		<Unit filename="library/md5.cpp" />
+		<Unit filename="library/md5.h" />
+		<Unit filename="library/sha1.cpp" />
+		<Unit filename="library/sha1.h" />
+		<Unit filename="main.cpp" />
+		<Unit filename="setting.h" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

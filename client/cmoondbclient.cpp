@@ -308,6 +308,55 @@ ResponseType CMoonDbClient::Receive(CPack& pack)
 	return static_cast<ResponseType>(rettype);
 }
 
+string CMoonDbClient::Quote(const string& src_str)
+{
+	string des_str;
+	size_t size = src_str.size();
+	des_str.reserve(size + 16);
+	const char* p = &src_str.front();
+	size_t i = 0;
+	while(i < size) {
+		switch(*(p + i)) {
+		case '\0':
+			des_str.push_back('\\');
+			des_str.push_back('0');
+			break;
+		case '\'':
+			des_str.push_back('\\');
+			des_str.push_back('\'');
+			break;
+		case '"':
+			des_str.push_back('\\');
+			des_str.push_back('"');
+			break;
+		case '\b':
+			des_str.push_back('\\');
+			des_str.push_back('b');
+			break;
+		case '\n':
+			des_str.push_back('\\');
+			des_str.push_back('n');
+			break;
+		case '\r':
+			des_str.push_back('\\');
+			des_str.push_back('r');
+			break;
+		case '\t':
+			des_str.push_back('\\');
+			des_str.push_back('t');
+			break;
+		case '\\':
+			des_str.push_back('\\');
+			des_str.push_back('\\');
+			break;
+		default:
+			des_str.push_back(*(p + i));
+		}
+		i++;
+	}
+	return des_str;
+}
+
 void CMoonDbClient::PrepareData(CPack& pack, OperationType oper, const string& table, const map<string, CAny>& data)
 {
 	pack.Clear();
@@ -468,7 +517,7 @@ __uint128_t CMoonDbClient::GetData(const string& table, __uint128_t id, map<stri
 				Content.Get<uint16_t>(fieldname);
 				CAny val;
 				val.Load(Content);
-				data[fieldname] = val;
+				data[fieldname] = std::move(val);
 			}
 		}
 		return count;
