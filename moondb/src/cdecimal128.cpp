@@ -15,6 +15,7 @@ const std::string CDecimal128::MinValueString = "-170141183460469231731687303715
 const std::string CDecimal128::DataRangeString = "from -1.70141183460469231731687303715884105727E32767 to 1.70141183460469231731687303715884105727E32767";
 const __int128_t CDecimal128::MaxDivInt = __int128_t(9999999999999999999ULL) * __int128_t(10000000000000000000ULL) + __int128_t(9999999999999999999ULL);
 const __int128_t CDecimal128::MinDivInt = -__int128_t(9999999999999999999ULL) * __int128_t(10000000000000000000ULL) - __int128_t(9999999999999999999ULL);
+const __uint128_t CDecimal128::TwoPow64 = __uint128_t(num_limits<uint64_t>::max()) + __uint128_t(1);
 
 void CDecimal128::Set(const std::string& num)
 {
@@ -775,6 +776,47 @@ __float128 CDecimal128::ToFloat128()
 	return result;
 }
 
+void CDecimal128::Extract(__float128& mantissa, ScaleType& exponent) const
+{
+	ScaleType p = 0;
+	__int128_t test = Data;
+
+	while(true) {
+	   test /= 10;
+	   if(test == 0) {
+		  break;
+	   }
+	   p++;
+	}
+
+	exponent = Scale + p;
+	mantissa = static_cast<__float128>(Data) / static_cast<__float128>(pow_10(p));
+}
+
+CDecimal128 CDecimal128::Inverse() const
+{
+	if(0 == Data) {
+		ThrowError(ERR_DENOMINATOR_ZERO, "Number '" + ToString() + "' is zero, so its inverse can't be computed.");
+	}
+
+	__float128 mantissa;
+	CDecimal128::ScaleType exponent;
+	Extract(mantissa, exponent);
+	CDecimal128 a1, a2;
+	a1.SetData(__float128(1.0) / mantissa * __float128(pow_10(CDecimal128::MaxPrecision - 1)));
+	a1.SetScale(-exponent - (CDecimal128::MaxPrecision - 1));
+	a2 = a1 * (CDecimal128::Two() - *this * a1);
+	// 此处只进行一步迭代即可达到精度要求
+	/*while(true) {
+		a2 = a1 * (CDecimal128::Two() - *this * a1);
+		if(a1 == a2) {
+			break;
+		}
+		a1 = a2;
+	}*/
+	return a2;
+}
+
 bool CDecimal128::Plus(const __int128_t& a_data, const __int128_t& b_data, __int128_t& result, ScaleType& scale)
 {
 	result = a_data + b_data;
@@ -807,6 +849,11 @@ bool CDecimal128::Plus(const __int128_t& a_data, const __int128_t& b_data, __int
 
 CDecimal128 & CDecimal128::operator+=(const CDecimal128 &B)
 {
+	if(0 == Data) {
+		Data = B.Data;
+		Scale = B.Scale;
+		return *this;
+	}
 	if(0 == B.Data) {
 		return *this;
 	}
@@ -875,74 +922,76 @@ CDecimal128 & CDecimal128::operator+=(const CDecimal128 &B)
 
 CDecimal128 operator+(const CDecimal128 &A, const CDecimal128 &B)
 {
-	if(0 == A.Data) {
-		return B;
-	}
-	if(0 == B.Data) {
-		return A;
-	}
-	if(CDecimal128::NotScale == A.Scale) {
-		ThrowError(ERR_NOT_INITIALIZE, A.ToString() + " isn't initialzed");
-	}
-	if(CDecimal128::NotScale == B.Scale) {
-		ThrowError(ERR_NOT_INITIALIZE, B.ToString() + " isn't initialzed");
-	}
 	CDecimal128 C;
-	if(A.Scale == B.Scale) {
-		C.Scale = A.Scale;
-		if(!CDecimal128::Plus(A.Data, B.Data, C.Data, C.Scale)) {
-			ThrowError(ERR_OUT_OF_RANGE, "Addtion of " + A.ToString() + " and " + B.ToString() + " is out of range");
-		}
+	if(0 == A.Data) {
+		C = B;
 	}
-	// 因为Data最高位的数字为1，所以A与B的Scale相等时四舍五入约等于0，至于大于的情况B也是约为0
-	// 对于非__int128_t的整数，如果最大或最小整数的第一个数字如果大于等于5，那么返回值应当加1或减1
-	else if(A.Scale - B.Scale >= CDecimal128::MaxPrecision) {
-		return A;
-	}
-	else if(B.Scale - A.Scale >= CDecimal128::MaxPrecision) {
-		return B;
+	else if(0 == B.Data) {
+		C = A;
 	}
 	else {
-		CDecimal128::ScaleType a_scale;
-		CDecimal128::ScaleType b_scale;
-		__int128_t a_data;
-		__int128_t b_data;
-		if(A.Scale > B.Scale) {
-			a_scale = A.Scale;
-			b_scale = B.Scale;
-			a_data = A.Data;
-			b_data = B.Data;
+		if(CDecimal128::NotScale == A.Scale) {
+			ThrowError(ERR_NOT_INITIALIZE, A.ToString() + " isn't initialzed");
+		}
+		if(CDecimal128::NotScale == B.Scale) {
+			ThrowError(ERR_NOT_INITIALIZE, B.ToString() + " isn't initialzed");
+		}
+		if(A.Scale == B.Scale) {
+			C.Scale = A.Scale;
+			if(!CDecimal128::Plus(A.Data, B.Data, C.Data, C.Scale)) {
+				ThrowError(ERR_OUT_OF_RANGE, "Addtion of " + A.ToString() + " and " + B.ToString() + " is out of range");
+			}
+		}
+		// 因为Data最高位的数字为1，所以A与B的Scale相等时四舍五入约等于0，至于大于的情况B也是约为0
+		// 对于非__int128_t的整数，如果最大或最小整数的第一个数字如果大于等于5，那么返回值应当加1或减1
+		else if(A.Scale - B.Scale >= CDecimal128::MaxPrecision) {
+			C = A;
+		}
+		else if(B.Scale - A.Scale >= CDecimal128::MaxPrecision) {
+			C = B;
 		}
 		else {
-			a_scale = B.Scale;
-			b_scale = A.Scale;
-			a_data = B.Data;
-			b_data = A.Data;
-		}
-		CDecimal128::ScaleType scalediff = a_scale - b_scale;
-		CDecimal128::ScaleType i = std::min(scalediff, CDecimal128::ToMaxDigits(a_data));
-		if(i > 0) {
-			a_data *= CDecimal128::pow_10(i);
-		}
-		a_scale -= i;
-		if(i < scalediff) {
-			CDecimal128::ScaleType multimes = scalediff - 1 - i;
-			b_scale += multimes + 1;
-			if(multimes > 0) {
-				b_data /= CDecimal128::pow_10(multimes);
+			CDecimal128::ScaleType a_scale;
+			CDecimal128::ScaleType b_scale;
+			__int128_t a_data;
+			__int128_t b_data;
+			if(A.Scale > B.Scale) {
+				a_scale = A.Scale;
+				b_scale = B.Scale;
+				a_data = A.Data;
+				b_data = B.Data;
 			}
-			int8_t lastdigit = b_data % 10;
-			b_data /= 10;
-			if(lastdigit >= 5) {
-				b_data++;
+			else {
+				a_scale = B.Scale;
+				b_scale = A.Scale;
+				a_data = B.Data;
+				b_data = A.Data;
 			}
-			else if(lastdigit <= -5) {
-				b_data--;
+			CDecimal128::ScaleType scalediff = a_scale - b_scale;
+			CDecimal128::ScaleType i = std::min(scalediff, CDecimal128::ToMaxDigits(a_data));
+			if(i > 0) {
+				a_data *= CDecimal128::pow_10(i);
 			}
-		}
-		C.Scale = a_scale;
-		if(!CDecimal128::Plus(a_data, b_data, C.Data, C.Scale)) {
-			ThrowError(ERR_OUT_OF_RANGE, "Addtion of " + A.ToString() + " and " + B.ToString() + " is out of range");
+			a_scale -= i;
+			if(i < scalediff) {
+				CDecimal128::ScaleType multimes = scalediff - 1 - i;
+				b_scale += multimes + 1;
+				if(multimes > 0) {
+					b_data /= CDecimal128::pow_10(multimes);
+				}
+				int8_t lastdigit = b_data % 10;
+				b_data /= 10;
+				if(lastdigit >= 5) {
+					b_data++;
+				}
+				else if(lastdigit <= -5) {
+					b_data--;
+				}
+			}
+			C.Scale = a_scale;
+			if(!CDecimal128::Plus(a_data, b_data, C.Data, C.Scale)) {
+				ThrowError(ERR_OUT_OF_RANGE, "Addtion of " + A.ToString() + " and " + B.ToString() + " is out of range");
+			}
 		}
 	}
 	return C;
@@ -1043,10 +1092,24 @@ void CDecimal128::SetGMPInt(mpz_t mpz, const __uint128_t& data)
 	}
 }
 
+/*void CDecimal128::MagnifyData(CDecimal128::DigitsType muldigits, const CDecimal128::DataType (&src)[2], CDecimal128::DataType (&des)[2])
+{
+	// 按照放大10倍数计算乘子
+	__uint128_t mul = CDecimal128::pow_10(muldigits);
+	// 获得放大的原数中的第65至128位
+	__uint128_t t_h = __uint128_t(src[0].d64[1]) * mul;
+	// 获得放大的原数中的第1至64位
+	__uint128_t t_l = __uint128_t(src[0].d64[0]) * mul;
+	// 计算放大后的第1至64位
+	des[0].d64[0] = t_l % TwoPow64;
+	// 计算放大后的第65至128位
+	des[0].d64[1] = t_h % TwoPow64 + t_l / TwoPow64;
+	// 计算放大后的第129至256位
+	des[1].d128 = src[1].d128 * mul + t_h / TwoPow64;
+}*/
+
 CDecimal128 operator*(const CDecimal128 &A, const CDecimal128 &B)
 {
-	static uint64_t elem_mask = 10000000000000000000ULL;
-	static __uint128_t elem_mask_square = __uint128_t(10000000000000000000ULL) * __uint128_t(10000000000000000000ULL);
 	CDecimal128 C(0, 0);
 	// 如果数据为0或者Scale之和过小导致乘积太小接近于0则返回0值
 	if(0 == A.Data || 0 == B.Data || A.Scale + B.Scale + CDecimal128::MaxPrecision + CDecimal128::MaxPrecision + 1 < CDecimal128::MinScale) {
@@ -1064,6 +1127,110 @@ CDecimal128 operator*(const CDecimal128 &A, const CDecimal128 &B)
 
 
 	/*********************************************************************************/
+	// 结果应当再除以2^128
+	/*if(CDecimal128::GetDigits(a_data) + CDecimal128::GetDigits(b_data) < CDecimal128::MaxPrecision) {
+		__uint128_t result = a_data * b_data;
+		C.Scale = A.Scale + B.Scale;
+		if(result > static_cast<__uint128_t>(num_limits<__int128_t>::max())) {
+			C.Scale++;
+			CDecimal128::ChangeScaleForMultiplication(result, C.Scale, C.Scale + 1);
+		}
+		C.Data = result;
+	}
+	else {
+		// 0低位，1高位
+		// 乘法结果
+		CDecimal128::DataType c_list[2];
+		// 分解乘数为两部分，每部分都是64位的整数，这里为了处理方便都用128位整数存储
+		CDecimal128::DataType a_list, b_list;
+		a_list.d128 = a_data;
+		b_list.d128 = b_data;
+
+		c_list[0].d128 = __uint128_t(a_list.d64[0]) * __uint128_t(b_list.d64[0]);
+		c_list[1].d128 = __uint128_t(a_list.d64[1]) * __uint128_t(b_list.d64[1]);
+
+		CDecimal128::DataType t1, t2;
+		t1.d128 = __uint128_t(a_list.d64[0]) * __uint128_t(b_list.d64[1]);
+		t2.d128 = __uint128_t(a_list.d64[1]) * __uint128_t(b_list.d64[0]);
+
+		// 计算低128位的前半部64位值
+		CDecimal128::DataType tmp;
+		tmp.d128 = __uint128_t(c_list[0].d64[1]) + __uint128_t(t1.d64[0]) + __uint128_t(t2.d64[0]);
+
+		// 加入到高位
+		c_list[1].d128 += __uint128_t(t1.d64[1]) + __uint128_t(t2.d64[1]) + __uint128_t(tmp.d64[1]);
+
+		// 计算低位
+		c_list[0].d128 = __uint128_t(tmp.d64[0]) * CDecimal128::TwoPow64 + __uint128_t(c_list[0].d64[0]);
+
+		// 转换为结果
+		C.Scale = A.Scale + B.Scale;
+		// 高位数值超出范围缩小
+		if(c_list[1].d128 > static_cast<__uint128_t>(num_limits<__int128_t>::max())) {
+			C.Scale++;
+			CDecimal128::ChangeScaleForMultiplication(c_list[1].d128, C.Scale, C.Scale + 1);
+			C.Data = c_list[1].d128;
+		}
+		// 高位数值等于最大值
+		else if(c_list[1].d128 == static_cast<__uint128_t>(num_limits<__int128_t>::max())) {
+			C.Data = c_list[1].d128;
+		}
+		// 高位数值小于最大值
+		else {
+			CDecimal128::DigitsType muldigits = CDecimal128::ToMaxDigits(c_list[1].d128);
+			// 无需放大
+			if(0 == muldigits) {
+				C.Data = c_list[1].d128;
+				if(c_list[0].d128 / __uint128_t(CDecimal128::pow_10(39)) >= 5) {
+					C.Data++;
+				}
+			}
+			// 小于1e18倍放大
+			else if(muldigits <= 18) {
+				C.Scale -= muldigits;
+				CDecimal128::DataType result[2];
+				CDecimal128::MagnifyData(muldigits, c_list, result);
+				C.Data = result[1].d128;
+				if(result[0].d128 / __uint128_t(CDecimal128::pow_10(39)) >= 5) {
+					C.Data++;
+				}
+			}
+			// 小于1e36倍放大，分两次放大
+			else if(muldigits <= 36) {
+				C.Scale -= muldigits;
+				CDecimal128::DataType result[2];
+				CDecimal128::MagnifyData(18, c_list, result);
+				c_list[0].d128 = result[0].d128;
+				c_list[1].d128 = result[1].d128;
+				CDecimal128::MagnifyData(muldigits - 18, c_list, result);
+				C.Data = result[1].d128;
+				if(result[0].d128 / __uint128_t(CDecimal128::pow_10(39)) >= 5) {
+					C.Data++;
+				}
+			}
+			// 大于1e36倍放大，分三次放大
+			else {
+				C.Scale -= muldigits;
+				CDecimal128::DataType result[2];
+				CDecimal128::MagnifyData(18, c_list, result);
+				c_list[0].d128 = result[0].d128;
+				c_list[1].d128 = result[1].d128;
+				CDecimal128::MagnifyData(18, c_list, result);
+				c_list[0].d128 = result[0].d128;
+				c_list[1].d128 = result[1].d128;
+				CDecimal128::MagnifyData(muldigits - 36, c_list, result);
+				C.Data = result[1].d128;
+				if(result[0].d128 / __uint128_t(CDecimal128::pow_10(39)) >= 5) {
+					C.Data++;
+				}
+			}
+		}
+	}*/
+
+
+	static uint64_t elem_mask = 10000000000000000000ULL;
+	static __uint128_t elem_mask_square = __uint128_t(10000000000000000000ULL) * __uint128_t(10000000000000000000ULL);
+	// 对于都小于num_limits<uint64_t>::max()的整数直接相乘即可
 	if(a_data <= num_limits<uint64_t>::max() && b_data <= num_limits<uint64_t>::max()) {
 		__uint128_t result = a_data * b_data;
 		C.Scale = A.Scale + B.Scale;
@@ -1073,6 +1240,7 @@ CDecimal128 operator*(const CDecimal128 &A, const CDecimal128 &B)
 		}
 		C.Data = result;
 	}
+	// 将大于64位的整数分解计算，分为两种情况，一种是两个数都小于elem_mask_square，另一种是至少一个数大于等于elem_mask_square
 	else if(a_data < elem_mask_square && b_data < elem_mask_square) {
 		uint64_t a_list[2], b_list[2];
 		if(a_data < elem_mask) {
@@ -1082,6 +1250,7 @@ CDecimal128 operator*(const CDecimal128 &A, const CDecimal128 &B)
 		else if(a_data < elem_mask_square) {
 			a_list[0] = a_data % elem_mask;
 			a_list[1] = a_data / elem_mask;
+
 		}
 		else {
 			a_list[0] = a_data % elem_mask;
@@ -1111,21 +1280,6 @@ CDecimal128 operator*(const CDecimal128 &A, const CDecimal128 &B)
 		t1.Scale = A.Scale + B.Scale + 38;
 		t1.Data = __int128_t(a_list[1]) * __int128_t(b_list[1]);
 		C += t1;
-//		__uint128_t c_list[2], t;
-//		t = __uint128_t(a_list[0]) * __uint128_t(b_list[1]) + __uint128_t(a_list[1]) * __uint128_t(b_list[0]);
-//		c_list[0] = __uint128_t(a_list[0]) * __uint128_t(b_list[0]) + t % elem_mask * elem_mask;
-//		c_list[1] = __uint128_t(a_list[1]) * __uint128_t(b_list[1]) + t / elem_mask + c_list[0] / elem_mask_square;
-//		c_list[0] %= elem_mask_square;
-//		//std::cout << c_list[1] << c_list[0] << std::endl;
-//		CDecimal128::DigitsType digits_high = CDecimal128::GetDigits(c_list[1]);
-//		CDecimal128::DigitsType digits_low = 38 - digits_high;
-//		C.Scale = A.Scale + B.Scale + digits_high;
-//		t = c_list[0] / CDecimal128::pow_10(digits_high - 1);
-//		C.Data = c_list[1] * CDecimal128::pow_10(digits_low) + t / 10;
-//		int8_t lastdigit = t % 10;
-//		if(lastdigit >= 5) {
-//			C.Data++;
-//		}
 	}
 	else {
 		uint64_t a_list[3], b_list[3];
@@ -1300,14 +1454,19 @@ CDecimal128 operator/(const CDecimal128 &A, const CDecimal128 &B)
 	}
 
 	// 使用boost库计算除法
-	number<cpp_dec_float<80>> a_num, b_num, c_num;
+	/*number<cpp_dec_float<80>> a_num, b_num, c_num;
 	a_num = cpp_dec_float<80>(A.ToString(false).c_str());
 	b_num = cpp_dec_float<80>(B.ToString(false).c_str());
 	c_num = a_num / b_num;
 	C.SetScale(CDecimal128::NotScale);
-	C.Set(c_num.str(40));
+	C.Set(c_num.str(40));*/
 
-	// 自己编写的除法
+
+	// 使用倒数计算除法
+	C = A * B.Inverse();
+
+
+	// 按照模仿十进制手算编写的除法
 	// 判断是否为负值
 	/*bool isnegative = (A.Data > 0 && B.Data < 0) || (A.Data < 0 && B.Data > 0);
 	__uint128_t a_data = A.Data >= 0 ? A.Data : -A.Data;

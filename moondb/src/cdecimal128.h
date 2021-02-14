@@ -22,7 +22,7 @@ class CDecimal128
 {
 public:
 	typedef int32_t ScaleType;				/**< Scale类型 */
-	typedef int32_t DigitsType;			/**< 数字长度，用于有效数字和指数数字的个数 */
+	typedef int32_t DigitsType;				/**< 数字长度，用于有效数字和指数数字的个数 */
 	const static ScaleType NotScale;		/**< 非Scale值 */
 
 	enum RoundType {
@@ -342,7 +342,9 @@ public:
 	// 改变符号的操作符，因为该类中将-170141183460469231731687303715884105728舍掉，所以取负值之后不会出现溢出
 	inline friend CDecimal128 operator-(const CDecimal128 &A)
 	{
-		CDecimal128 B(-A.Data, A.Scale);
+		CDecimal128 B;
+		B.Data = -A.Data;
+		B.Scale = A.Scale;
 		return B;
 	}
 
@@ -354,6 +356,11 @@ public:
 	inline friend bool operator==(const CDecimal128 &A, const CDecimal128 &B)
 	{
 		return A.ChangeScale(B.Scale) == B.Data;
+	}
+
+	inline friend bool operator!=(const CDecimal128 &A, const CDecimal128 &B)
+	{
+		return A.ChangeScale(B.Scale) != B.Data;
 	}
 
 	friend CDecimal128 operator+(const CDecimal128 &A, const CDecimal128 &B);
@@ -387,6 +394,18 @@ public:
 		return *this;
 	}
 
+	inline static const CDecimal128& One()
+	{
+		static CDecimal128 val(1, 0);
+		return val;
+	}
+
+	inline static const CDecimal128& Two()
+	{
+		static CDecimal128 val(2, 0);
+		return val;
+	}
+
 protected:
 	ScaleType Scale;	/**< -32767至32767，如果大于0为小数点后的数字个数，小于0为小数点前的0的个数，为0表示无小数从个位数字开始 */
 	__int128_t Data;	/**< 将数值存储在这里 */
@@ -402,6 +421,13 @@ protected:
 	const static std::string DataRangeString;/**< 范围字符串 */
 	const static __int128_t MaxDivInt;		/**< 最大除数 */
 	const static __int128_t MinDivInt;		/**< 最小除数 */
+	const static __uint128_t TwoPow64;		/**< 2^64 */
+
+	union DataType {
+		__uint128_t d128;
+		// 0低位，1高位
+		uint64_t d64[2];
+	};
 
 	// 如果超出范围返回true，正常返回false
 	inline static bool CheckIfIntStringOutOfRange(const std::string& numstr)
@@ -572,5 +598,14 @@ protected:
 
 	static bool ChangeScaleForMultiplication(__uint128_t& data, ScaleType oldscale, ScaleType newscale);
 	static bool Plus(__int128_t& a_data, const __int128_t& b_data, ScaleType& scale);
+
+	// 取得小数部分和指数，比如12.345取出后mantissa=1.2345、exponent=1
+	void Extract(__float128& mantissa, ScaleType& exponent) const;
+
+	// 取倒数
+	CDecimal128 Inverse() const;
+
+	// 放大10的muldigits次方倍，muldigits最大为18
+	//static void MagnifyData(CDecimal128::DigitsType muldigits, const CDecimal128::DataType (&src)[2], CDecimal128::DataType (&des)[2]);
 };
 }

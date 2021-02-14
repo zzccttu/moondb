@@ -16,7 +16,7 @@ class CDecimal64
 {
 public:
 	typedef int32_t ScaleType;				/**< Scale类型 */
-	typedef int32_t DigitsType;			/**< 数字长度，用于有效数字和指数数字的个数 */
+	typedef int32_t DigitsType;				/**< 数字长度，用于有效数字和指数数字的个数 */
 	const static ScaleType NotScale;		/**< 非Scale值 */
 
 	enum RoundType {
@@ -299,7 +299,9 @@ public:
 
 	inline friend CDecimal64 operator-(const CDecimal64 &A)
 	{
-		CDecimal64 B(-A.Data, A.Scale);
+		CDecimal64 B;
+		B.Data = -A.Data;
+		B.Scale = A.Scale;
 		return B;
 	}
 
@@ -311,6 +313,11 @@ public:
 	inline friend bool operator==(const CDecimal64 &A, const CDecimal64 &B)
 	{
 		return A.ChangeScale(B.GetScale()) == B.GetData();
+	}
+
+	inline friend bool operator!=(const CDecimal64 &A, const CDecimal64 &B)
+	{
+		return A.ChangeScale(B.GetScale()) != B.GetData();
 	}
 
 	friend CDecimal64 operator+(const CDecimal64 &A, const CDecimal64 &B);
@@ -349,6 +356,18 @@ public:
 	}
 
 	void MakeScaleEffective();
+
+	inline static const CDecimal64& One()
+	{
+		static CDecimal64 val(1, 0);
+		return val;
+	}
+
+	inline static const CDecimal64& Two()
+	{
+		static CDecimal64 val(2, 0);
+		return val;
+	}
 
 protected:
 	ScaleType Scale;	/**< -32767至32767，如果大于0为小数点后的数字个数，小于0为小数点前的0的个数，为0表示无小数从个位数字开始 */
